@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.agent_progress import router as agent_progress_router
 from app.api.routes.agents import router as agents_router
+from app.api.routes.chat import router as chat_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.files import router as files_router
 from app.api.routes.users import router as users_router
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_router, prefix="/api/v1", tags=["Documents"])
     app.include_router(files_router, tags=["Files"])
     app.include_router(users_router, prefix="/api", tags=["Users"])
+    app.include_router(chat_router, prefix="/api/v1", tags=["Chat"])
 
     return app
 
