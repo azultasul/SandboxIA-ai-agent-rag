@@ -35,9 +35,10 @@ interface ReferenceItemProps {
     data: ReferenceItemData
     index: number
     idPrefix?: string
+    markdown?: boolean
 }
 
-function ReferenceItem({ data, index, idPrefix = "ref" }: ReferenceItemProps) {
+function ReferenceItem({ data, index, idPrefix = "ref", markdown = true }: ReferenceItemProps) {
     const [isExpanded, setIsExpanded] = useState(false)
 
     const handleToggle = () => setIsExpanded(!isExpanded)
@@ -87,9 +88,15 @@ function ReferenceItem({ data, index, idPrefix = "ref" }: ReferenceItemProps) {
                 {isExpanded && (
                     <div id={contentId} className="mt-3 ">
                         <div className="pt-3 border-t border-border">
-                            <div className="text-sm text-muted-foreground whitespace-pre-line prose prose-sm prose-neutral max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:text-foreground prose-headings:text-sm prose-headings:mt-2 prose-headings:mb-1 prose-a:text-primary">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.summary.replace(/\[\s*\d+\s*\]\s*/g, "")}</ReactMarkdown>
-                            </div>
+                            {markdown ? (
+                                <div className="text-sm text-muted-foreground prose prose-sm prose-neutral max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:text-foreground prose-headings:text-sm prose-headings:mt-2 prose-headings:mb-1 prose-a:text-primary">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.summary.replace(/\[[^\]]*\]\s*/, "")}</ReactMarkdown>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground whitespace-pre-line">
+                                    {data.summary.replace(/\[[^\]]*\]\s*/, "")}
+                                </div>
+                            )}
                             {data.sourceUrl && (
                                 <a
                                     href={data.sourceUrl}
@@ -183,7 +190,7 @@ export function ReferencePanel({ isOpen, onToggle, approvalCases, regulations, c
                     {regs.length > 0 ? (
                         regs.map((reg, index) => (
                             <ReferenceItem
-                                key={reg.title}
+                                key={`${reg.title}-${index}`}
                                 data={{
                                     title: reg.title,
                                     summary: reg.summary,
@@ -192,6 +199,7 @@ export function ReferencePanel({ isOpen, onToggle, approvalCases, regulations, c
                                 }}
                                 index={index}
                                 idPrefix="reg"
+                                markdown={reg.markdown}
                             />
                         ))
                     ) : (

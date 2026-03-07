@@ -704,6 +704,7 @@ def generate_evidence_node(state: EligibilityState) -> dict:
                 title=law.get("citation", law.get("law_name", "")),
                 summary=clean_rag_content(law.get("content", ""), max_length=300),
                 source_url=law.get("source_url"),
+                markdown=False,  # R3 법령은 마크다운 미적용
             )
         )
 
@@ -722,6 +723,7 @@ def generate_evidence_node(state: EligibilityState) -> dict:
                 title=section_title,
                 summary=clean_rag_content(content, max_length=300),
                 source_url=reg.get("source_url"),
+                markdown=True,  # R1 제도는 마크다운 적용
             )
         )
 
