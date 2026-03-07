@@ -21,13 +21,10 @@ import { useUIStore } from "@/stores/ui-store"
 import { useWizardStore } from "@/stores/wizard-store"
 import type { ApprovalCase, EligibilityResponse, EligibilityResult, JudgmentType, Regulation } from "@/types/api/eligibility"
 import { useQueryClient } from "@tanstack/react-query"
+import { SidePanel } from "@/components/features/draft/SidePanel"
 import { AlertTriangle, CheckCircle2, ExternalLink, Scale } from "lucide-react"
-import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { use, useEffect, useRef, useState } from "react"
-
-// async-suspense-boundaries: ReferencePanel lazy loading
-const ReferencePanel = dynamic(() => import("@/components/features/draft/ReferencePanel").then((mod) => mod.ReferencePanel), { ssr: false })
 
 type ReasonCategory = "law" | "regulation" | "case"
 
@@ -185,7 +182,6 @@ export default function EligibilityPage({ params }: EligibilityPageProps) {
     const [analysisData, setAnalysisData] = useState<AIAnalysisData>(defaultAnalysisData)
     const [selectedDecision, setSelectedDecision] = useState<DecisionType>("sandbox")
     const [isAnalyzed, setIsAnalyzed] = useState(false)
-    const [isReferencePanelOpen, setIsReferencePanelOpen] = useState(true)
     const [isRunningTrackAgent, setIsRunningTrackAgent] = useState(false)
     const [approvalCases, setApprovalCases] = useState<ApprovalCase[]>()
     const [regulations, setRegulations] = useState<Regulation[]>()
@@ -447,7 +443,7 @@ export default function EligibilityPage({ params }: EligibilityPageProps) {
 
             <div className="container">
                 <div className="flex gap-4">
-                    <div className={isReferencePanelOpen ? "flex-[2] space-y-6" : "flex-1 space-y-6"}>
+                    <div className="flex-[2] space-y-6">
                         <div>
                             <h1 className="text-2xl font-bold mb-2">시장출시 진단</h1>
                             <p className="text-muted-foreground">AI가 서비스의 규제 현황을 분석하여 시장 출시 가능 여부를 판단합니다</p>
@@ -673,16 +669,10 @@ export default function EligibilityPage({ params }: EligibilityPageProps) {
                         />
                     </div>
 
-                    <div className={isReferencePanelOpen ? "flex-1 min-w-0" : ""}>
-                        <div className="sticky top-24">
-                            <ReferencePanel
-                                isOpen={isReferencePanelOpen}
-                                onToggle={() => setIsReferencePanelOpen(!isReferencePanelOpen)}
-                                approvalCases={approvalCases}
-                                regulations={regulations}
-                            />
-                        </div>
-                    </div>
+                    <SidePanel
+                        approvalCases={approvalCases}
+                        regulations={regulations}
+                    />
                 </div>
             </div>
         </div>

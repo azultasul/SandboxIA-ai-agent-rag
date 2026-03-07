@@ -2,11 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import { ConfirmModal } from "@/components/ui/confirm-modal"
-import { useChatMutation, useChatResetMutation } from "@/hooks/mutations/use-chat-mutation"
+import { useChatResetMutation } from "@/hooks/mutations/use-chat-mutation"
 import { useChatHistoryQuery } from "@/hooks/queries/use-chat-query"
+import { chatApi } from "@/lib/api/chat"
 import type { ChatMessage } from "@/types/api/chat"
 import { Loader2, RotateCcw, Send } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -17,21 +18,35 @@ interface ChatPanelProps {
 export function ChatPanel({ projectId }: ChatPanelProps) {
     const [input, setInput] = useState("")
     const [resetModalOpen, setResetModalOpen] = useState(false)
-    const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
-    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const serverLengthRef = useRef(0)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const { data: history } = useChatHistoryQuery(projectId)
-    const chatMutation = useChatMutation()
     const resetMutation = useChatResetMutation()
 
-    // 표시할 메시지: 서버 히스토리 + 낙관적 메시지
-    const messages = [...(history ?? []), ...optimisticMessages]
-
-    // 자동 스크롤
+    // 서버 히스토리가 갱신되면 로컬 메시지와 동기화
+    // 로컬에서 추가한 메시지(서버 길이 이후)는 유지
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, [messages.length])
+        if (!history) return
+        const localOnly = localMessages.slice(serverLengthRef.current)
+        setLocalMessages([...history, ...localOnly])
+        serverLengthRef.current = history.length
+    }, [history]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // 자동 스크롤 (채팅 컨테이너 내부만)
+    const scrollToBottom = useCallback(() => {
+        const container = scrollContainerRef.current
+        if (container) {
+            container.scrollTop = container.scrollHeight
+        }
+    }, [])
+
+    useEffect(() => {
+        scrollToBottom()
+    }, [localMessages.length, scrollToBottom])
 
     // textarea 높이 자동 조절
     const adjustTextareaHeight = () => {
@@ -44,7 +59,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
 
     const handleSend = async () => {
         const trimmed = input.trim()
-        if (!trimmed || chatMutation.isPending) return
+        if (!trimmed || isLoading) return
 
         const userMessage: ChatMessage = {
             role: "user",
@@ -52,21 +67,22 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
             timestamp: new Date().toISOString(),
         }
 
-        // 낙관적 UI: 유저 메시지 즉시 표시
-        setOptimisticMessages((prev) => [...prev, userMessage])
+        // 유저 메시지 즉시 표시
+        setLocalMessages((prev) => [...prev, userMessage])
         setInput("")
+        setIsLoading(true)
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto"
         }
 
         try {
-            const response = await chatMutation.mutateAsync({
+            const response = await chatApi.sendMessage({
                 project_id: projectId,
                 message: trimmed,
             })
 
-            // 서버 응답 수신 → 어시스턴트 메시지 추가 (invalidateQueries가 서버 데이터를 가져올 때까지)
-            setOptimisticMessages((prev) => [
+            // 어시스턴트 응답 추가
+            setLocalMessages((prev) => [
                 ...prev,
                 {
                     role: "assistant",
@@ -75,9 +91,10 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                     agent: response.agent,
                 },
             ])
+            // 서버 길이 업데이트 (다음 히스토리 동기화 시 중복 방지)
+            serverLengthRef.current += 2 // user + assistant
         } catch {
-            // 에러 시 에러 메시지 표시
-            setOptimisticMessages((prev) => [
+            setLocalMessages((prev) => [
                 ...prev,
                 {
                     role: "assistant",
@@ -85,15 +102,10 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                     timestamp: new Date().toISOString(),
                 },
             ])
+        } finally {
+            setIsLoading(false)
         }
     }
-
-    // 서버 데이터가 갱신되면 낙관적 메시지 제거
-    useEffect(() => {
-        if (history && history.length > 0 && optimisticMessages.length > 0) {
-            setOptimisticMessages([])
-        }
-    }, [history, optimisticMessages.length])
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -105,29 +117,28 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
     const handleReset = async () => {
         setResetModalOpen(false)
         await resetMutation.mutateAsync(projectId)
-        setOptimisticMessages([])
+        setLocalMessages([])
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-200px)] border border-border rounded-lg bg-background">
+        <div className="flex flex-col h-[calc(100vh-230px)] border border-border rounded-lg bg-background">
             {/* 헤더 */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <h3 className="text-sm font-semibold">AI 어시스턴트</h3>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
+                <button
+                    type="button"
+                    className="text-foreground hover:opacity-70 disabled:opacity-30"
                     onClick={() => setResetModalOpen(true)}
-                    disabled={messages.length === 0}
+                    disabled={localMessages.length === 0}
                     title="대화 리셋"
                 >
                     <RotateCcw className="h-3.5 w-3.5" />
-                </Button>
+                </button>
             </div>
 
             {/* 메시지 영역 */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-                {messages.length === 0 && (
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+                {localMessages.length === 0 && (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-center text-muted-foreground text-sm">
                             <p className="mb-2">규제 샌드박스에 대해 질문해보세요.</p>
@@ -138,7 +149,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                     </div>
                 )}
 
-                {messages.map((msg, idx) => (
+                {localMessages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div
                             className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
@@ -159,7 +170,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                 ))}
 
                 {/* 로딩 인디케이터 */}
-                {chatMutation.isPending && optimisticMessages.at(-1)?.role === "user" && (
+                {isLoading && (
                     <div className="flex justify-start">
                         <div className="bg-muted rounded-lg px-3 py-2 text-sm flex items-center gap-2 text-muted-foreground">
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -168,7 +179,6 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                     </div>
                 )}
 
-                <div ref={messagesEndRef} />
             </div>
 
             {/* 입력 영역 */}
@@ -183,15 +193,15 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                         }}
                         onKeyDown={handleKeyDown}
                         placeholder="질문을 입력하세요..."
-                        className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                        className="flex-1 resize-none rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 h-8 py-0 leading-8"
                         rows={1}
-                        disabled={chatMutation.isPending}
+                        disabled={isLoading}
                     />
                     <Button
                         size="icon"
-                        className="h-9 w-9 shrink-0"
+                        className="h-8 w-8 shrink-0"
                         onClick={handleSend}
-                        disabled={!input.trim() || chatMutation.isPending}
+                        disabled={!input.trim() || isLoading}
                     >
                         <Send className="h-4 w-4" />
                     </Button>
