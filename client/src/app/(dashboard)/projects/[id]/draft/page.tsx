@@ -21,13 +21,10 @@ import { useWizardStore, type FormType } from "@/stores/wizard-store"
 import type { ApprovalCase, Regulation } from "@/types/api/eligibility"
 import { PROJECT_STATUS, TRACK_TO_FORM_ID, type Track } from "@/types/data/project"
 import { useQueryClient } from "@tanstack/react-query"
+import { SidePanel } from "@/components/features/draft/SidePanel"
 import { AlertCircle, CheckCircle2, Download, Sparkles } from "lucide-react"
-import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { use, useEffect, useRef, useState } from "react"
-
-// async-suspense-boundaries: ReferencePanel lazy loading
-const ReferencePanel = dynamic(() => import("@/components/features/draft/ReferencePanel").then((mod) => mod.ReferencePanel), { ssr: false })
 
 /** Track 타입 가드: TRACK_TO_FORM_ID에 존재하는 유효한 Track인지 확인 */
 const isTrack = (value: string | null | undefined): value is Track => value != null && Object.prototype.hasOwnProperty.call(TRACK_TO_FORM_ID, value)
@@ -46,7 +43,6 @@ export default function DraftPage({ params }: DraftPageProps) {
     const formSectionRef = useRef<FormSectionListHandle>(null)
     const { markStepComplete, setCurrentStep } = useWizardStore()
     const { showGlobalAILoader, hideGlobalAILoader } = useUIStore()
-    const [isReferencePanelOpen, setIsReferencePanelOpen] = useState(true)
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
 
     // 완료 처리 로딩 상태
@@ -221,7 +217,7 @@ export default function DraftPage({ params }: DraftPageProps) {
             <div className="container">
                 <div className="flex gap-4">
                     {/* 왼쪽: 폼 영역 */}
-                    <div className={isReferencePanelOpen ? "flex-[2] space-y-6" : "flex-1 space-y-6"}>
+                    <div className="flex-[2] space-y-6">
                         <div>
                             <h1 className="text-2xl font-bold mb-2">신청서 작성</h1>
                             <p className="text-muted-foreground">
@@ -409,18 +405,12 @@ export default function DraftPage({ params }: DraftPageProps) {
                         />
                     </div>
 
-                    {/* 오른쪽: 참고 패널 */}
-                    <div className={isReferencePanelOpen ? "flex-1 min-w-0" : ""}>
-                        <div className="sticky top-24">
-                            <ReferencePanel
-                                isOpen={isReferencePanelOpen}
-                                onToggle={() => setIsReferencePanelOpen(!isReferencePanelOpen)}
-                                approvalCases={similarCases}
-                                regulations={regulations}
-                                track={project?.track}
-                            />
-                        </div>
-                    </div>
+                    <SidePanel
+                        approvalCases={similarCases}
+                        regulations={regulations}
+                        track={project?.track}
+                        projectId={id}
+                    />
                 </div>
             </div>
         </div>
