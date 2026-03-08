@@ -88,7 +88,7 @@ async def rag_expert_node(state: dict) -> dict:
     ]
 
     try:
-        response = await llm.ainvoke(messages, max_tokens=1024)
+        response = await llm.bind(max_tokens=1024).ainvoke(messages)
         assistant_message = response.content
     except Exception as e:
         logger.error(f"[RAGExpert] 응답 생성 실패: {e}")

@@ -115,9 +115,14 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
     }
 
     const handleReset = async () => {
-        setResetModalOpen(false)
-        await resetMutation.mutateAsync(projectId)
-        setLocalMessages([])
+        try {
+            await resetMutation.mutateAsync(projectId)
+            setLocalMessages([])
+            serverLengthRef.current = 0
+            setResetModalOpen(false)
+        } catch {
+            setResetModalOpen(false)
+        }
     }
 
     return (

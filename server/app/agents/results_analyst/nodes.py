@@ -35,7 +35,7 @@ async def results_analyst_node(state: dict) -> dict:
     ]
 
     try:
-        response = await llm.ainvoke(messages, max_tokens=1024)
+        response = await llm.bind(max_tokens=1024).ainvoke(messages)
         assistant_message = response.content
     except Exception as e:
         logger.error(f"[ResultsAnalyst] 응답 생성 실패: {e}")
