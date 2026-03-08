@@ -20,6 +20,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
     const [resetModalOpen, setResetModalOpen] = useState(false)
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [isResetting, setIsResetting] = useState(false)
     const serverLengthRef = useRef(0)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -115,6 +116,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
     }
 
     const handleReset = async () => {
+        setIsResetting(true)
         try {
             await resetMutation.mutateAsync(projectId)
             setLocalMessages([])
@@ -122,6 +124,8 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
             setResetModalOpen(false)
         } catch {
             setResetModalOpen(false)
+        } finally {
+            setIsResetting(false)
         }
     }
 
@@ -136,6 +140,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                     onClick={() => setResetModalOpen(true)}
                     disabled={localMessages.length === 0}
                     title="대화 리셋"
+                    aria-label="대화 리셋"
                 >
                     <RotateCcw className="h-3.5 w-3.5" />
                 </button>
@@ -223,6 +228,7 @@ export function ChatPanel({ projectId }: ChatPanelProps) {
                 confirmLabel="리셋"
                 cancelLabel="취소"
                 confirmVariant="destructive"
+                isLoading={isResetting}
             />
         </div>
     )
