@@ -613,3 +613,151 @@
 
 - 입력: A~D 결과
 - 출력: 컨설턴트 제출용 리포트(요약, 우선순위, 바로 고칠 것 TOP5)
+
+---
+
+## 7) 채팅 에이전트 (Chat Supervisor Agent)
+
+### 역할
+
+- 신청서 초안 작성(4단계) 화면에서 컨설턴트가 AI와 실시간 대화할 수 있는 채팅 인터페이스 제공
+- Supervisor 패턴으로 사용자 질문을 분류하고 적합한 서브 에이전트로 라우팅
+- 프로젝트 분석 결과 질문, 규제/사례/법령 질문, 범위 외 질문을 구분하여 처리
+
+### 입력 데이터
+
+- `project_id`: 현재 프로젝트 ID
+- `user_message`: 사용자 메시지
+- `chat_history`: 최근 10개 대화 이력 (컨텍스트 유지)
+
+### 출력 데이터
+
+- `assistant_message`: AI 응답 메시지
+- `agent_used`: 사용된 서브 에이전트 (results_analyst / rag_expert / decline)
+
+### 라우팅 로직
+
+```
+사용자 메시지
+     ↓
+┌─────────────────────────────────────┐
+│  Chat Supervisor (gpt-4o-mini)      │
+│  - 질문 의도 분류                     │
+│  - 쿼리 리라이팅                      │
+└──────────┬──────────────────────────┘
+           │
+     ┌─────┴─────┬──────────────┐
+     ↓           ↓              ↓
+[Results     [RAG Expert]   [Decline]
+ Analyst]
+     │           │              │
+     ↓           ↓              ↓
+ 프로젝트     RAG 검색       범위 외
+ 데이터 조회  (R1/R2/R3)    거절 메시지
+ + LLM 응답  + LLM 응답
+     │           │              │
+     └───────────┴──────────────┘
+                 ↓
+        assistant_message 반환
+```
+
+### 라우팅 기준
+
+| 라우트             | 판단 기준                                                  | 모델        |
+| ------------------ | ---------------------------------------------------------- | ----------- |
+| `results_analyst`  | "이 프로젝트의~" 등 프로젝트별 분석 결과에 대한 질문        | gpt-4o-mini |
+| `rag_expert`       | 규제 제도, 절차, 승인 사례, 법령 관련 질문                  | gpt-4o      |
+| `decline`          | 날씨, 코딩 등 서비스 범위 외 질문                           | -           |
+
+### Tools (서브 에이전트별)
+
+#### A. Results Analyst (프로젝트 분석 결과 조회)
+
+| 항목     | 내용                                                                      |
+| -------- | ------------------------------------------------------------------------- |
+| **입력** | project_id, rewritten_query                                               |
+| **출력** | 프로젝트 분석 결과 기반 응답 (대상성 판단, 트랙 추천, 점수 등)            |
+| **참고** | Supabase에서 프로젝트 데이터 직접 조회, gpt-4o-mini로 응답 생성           |
+
+**데이터 조회 함수:**
+
+- `fetch_project_summary()`: 서비스명, 트랙, 현재 단계 등 기본 정보
+- `fetch_eligibility_summary()`: 대상성 판정 + 확신도 + 판단 근거
+- `fetch_track_summary()`: 트랙별 추천 점수 및 사유
+- `fetch_all_project_data()`: 위 데이터 통합 조회
+
+#### B. RAG Expert (규제/사례/법령 검색)
+
+| 항목     | 내용                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| **입력** | rewritten_query                                                       |
+| **출력** | RAG 검색 결과 기반 응답 (규제 제도, 승인 사례, 법령 정보)             |
+| **참고** | R1/R2/R3 병렬 검색 (ThreadPoolExecutor, top_k=3), gpt-4o로 응답 생성 |
+
+**사용 RAG Tools:**
+
+- **R1 (규제제도 & 절차 RAG)**: `search_regulation()`
+- **R2 (승인 사례 RAG)**: `search_case()`
+- **R3 (도메인별 규제·법령 RAG)**: `search_domain_law()`
+
+#### C. Decline (범위 외 거절)
+
+| 항목     | 내용                                               |
+| -------- | -------------------------------------------------- |
+| **입력** | -                                                  |
+| **출력** | 범위 외 질문에 대한 안내 메시지                    |
+| **참고** | LLM 호출 없이 고정 메시지 반환                     |
+
+### API 엔드포인트
+
+| 메서드   | 경로                               | 설명                   |
+| -------- | ---------------------------------- | ---------------------- |
+| `POST`   | `/api/v1/chat`                     | 메시지 전송 및 응답    |
+| `GET`    | `/api/v1/chat/{projectId}/history` | 대화 이력 조회         |
+| `DELETE` | `/api/v1/chat/{projectId}/history` | 대화 이력 초기화       |
+
+**Request/Response:**
+
+```json
+// POST /api/v1/chat - Request
+{
+  "project_id": "string",
+  "message": "string"
+}
+
+// POST /api/v1/chat - Response
+{
+  "role": "assistant",
+  "content": "string",
+  "agent": "results_analyst | rag_expert | decline",
+  "timestamp": "datetime"
+}
+```
+
+### DB 연동 (Supabase)
+
+| 테이블     | 저장 데이터                                           | 비고                              |
+| ---------- | ----------------------------------------------------- | --------------------------------- |
+| `projects` | chat_history (JSONB) - 대화 메시지 배열               | 기존 projects 테이블의 JSONB 컬럼 |
+
+### 파일 구조
+
+```
+server/app/agents/
+├── chat_supervisor/
+│   ├── __init__.py
+│   ├── state.py          # ChatSupervisorState 정의
+│   ├── nodes.py          # supervisor_node, decline_node
+│   ├── prompts.py        # 라우팅 시스템 프롬프트
+│   └── graph.py          # LangGraph 워크플로우, run_chat()
+├── rag_expert/
+│   ├── __init__.py
+│   ├── nodes.py          # rag_expert_node (병렬 RAG 검색)
+│   └── prompts.py        # RAG 응답 생성 프롬프트
+└── results_analyst/
+    ├── __init__.py
+    ├── nodes.py          # results_analyst_node
+    ├── tools.py          # Supabase 데이터 조회 함수
+    └── prompts.py        # 분석 결과 설명 프롬프트
+```
+
