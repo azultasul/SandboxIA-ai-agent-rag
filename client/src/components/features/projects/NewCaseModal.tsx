@@ -5,18 +5,23 @@ import { Input } from "@/components/ui/input"
 import { Modal, ModalContent, ModalDescription, ModalFooter, ModalHeader, ModalTitle } from "@/components/ui/modal"
 import { Textarea } from "@/components/ui/textarea"
 import { useCreateProjectMutation } from "@/hooks/mutations/use-create-project-mutation"
+import { useAuthStore } from "@/stores/auth-store"
 import { useUIStore } from "@/stores/ui-store"
+import { FlaskConical } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 export function NewCaseModal() {
     const router = useRouter()
     const { isNewCaseModalOpen, closeNewCaseModal } = useUIStore()
+    const { user } = useAuthStore()
     const [formData, setFormData] = useState({
         companyName: "",
         serviceName: "",
         description: "",
     })
+
+    const isTestUser = user?.email === process.env.NEXT_PUBLIC_TEST_USER_EMAIL
 
     const { mutate: createProject, isPending } = useCreateProjectMutation({
         onSuccess: (data) => {
@@ -38,6 +43,27 @@ export function NewCaseModal() {
             service_name: formData.serviceName || undefined,
             service_description: formData.description || undefined,
         })
+    }
+
+    if (isTestUser) {
+        return (
+            <Modal open={isNewCaseModalOpen} onOpenChange={(open: boolean) => !open && closeNewCaseModal()}>
+                <ModalContent className="sm:max-w-[400px]">
+                    <ModalHeader>
+                        <div className="flex items-center gap-2">
+                            <FlaskConical className="h-5 w-5 text-muted-foreground" />
+                            <ModalTitle>테스트 계정 안내</ModalTitle>
+                        </div>
+                        <ModalDescription className="mt-4">
+                            테스트 계정으로는 새로운 프로젝트를 추가할 수 없습니다. <br />샘플 프로젝트를 참고해주세요.
+                        </ModalDescription>
+                    </ModalHeader>
+                    <ModalFooter>
+                        <Button onClick={closeNewCaseModal}>확인</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+        )
     }
 
     return (

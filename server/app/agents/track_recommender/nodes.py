@@ -787,6 +787,7 @@ def generate_recommendation_node(state: TrackRecommenderState) -> dict:
                     title=_clean_title(raw_title),
                     summary=(constraint.get("content") or "")[:300],
                     source_url=constraint.get("source_url"),
+                    markdown=False,  # R3 법령은 마크다운 미적용
                 )
             )
     for td in track_definitions[:5]:
@@ -799,6 +800,7 @@ def generate_recommendation_node(state: TrackRecommenderState) -> dict:
                 title=_clean_title(raw_title),
                 summary=(td.get("content") or "")[:300],
                 source_url=td.get("source_url"),
+                markdown=True,  # R1 제도는 마크다운 적용
             )
         )
 

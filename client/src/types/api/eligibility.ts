@@ -35,6 +35,7 @@ export interface Regulation {
     title: string
     summary: string
     source_url: string | null
+    markdown?: boolean  // 마크다운 렌더링 여부 (R1 제도: true, R3 법령: false)
 }
 
 // 근거 데이터 통합 구조

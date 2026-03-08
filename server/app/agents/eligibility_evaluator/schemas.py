@@ -67,6 +67,7 @@ class Regulation(BaseModel):
     title: str = Field(description="법령명")
     summary: str = Field(description="요약")
     source_url: str | None = Field(default=None, description="원문보기 링크")
+    markdown: bool = Field(default=True, description="마크다운 렌더링 여부 (R1 제도: True, R3 법령: False)")
 
 
 class EvidenceData(BaseModel):

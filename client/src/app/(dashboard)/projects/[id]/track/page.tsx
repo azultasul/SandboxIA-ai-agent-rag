@@ -24,13 +24,10 @@ import { useWizardStore } from "@/stores/wizard-store"
 import type { Regulation } from "@/types/api/eligibility"
 import type { RecommendableTrack, TrackComparisonItem, TrackRecommendResponse } from "@/types/api/track"
 import { useQueryClient } from "@tanstack/react-query"
+import { SidePanel } from "@/components/features/draft/SidePanel"
 import { AlertCircle, CheckCircle2, ExternalLink, Info, XCircle } from "lucide-react"
-import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { use, useEffect, useMemo, useRef, useState } from "react"
-
-// async-suspense-boundaries: ReferencePanel lazy loading
-const ReferencePanel = dynamic(() => import("@/components/features/draft/ReferencePanel").then((mod) => mod.ReferencePanel), { ssr: false })
 
 interface TrackPageProps {
     params: Promise<{ id: string }>
@@ -122,7 +119,6 @@ export default function TrackPage({ params }: TrackPageProps) {
     const { showGlobalAILoader, hideGlobalAILoader } = useUIStore()
 
     const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
-    const [isReferencePanelOpen, setIsReferencePanelOpen] = useState(true)
     const [isRunningDraftAgent, setIsRunningDraftAgent] = useState(false)
 
     // 모달 상태
@@ -423,7 +419,7 @@ export default function TrackPage({ params }: TrackPageProps) {
 
                 <div className="container">
                     <div className="flex gap-4">
-                        <div className={isReferencePanelOpen ? "flex-[2] space-y-6" : "flex-1 space-y-6"}>
+                        <div className="flex-[2] space-y-6">
                             <div>
                                 <h1 className="text-2xl font-bold mb-2">트랙 선택</h1>
                                 <p className="text-muted-foreground">AI가 분석한 결과를 바탕으로 최적의 규제 샌드박스 트랙을 선택하세요</p>
@@ -548,16 +544,10 @@ export default function TrackPage({ params }: TrackPageProps) {
                             />
                         </div>
 
-                        <div className={isReferencePanelOpen ? "flex-1" : ""}>
-                            <div className="sticky top-24">
-                                <ReferencePanel
-                                    isOpen={isReferencePanelOpen}
-                                    onToggle={() => setIsReferencePanelOpen(!isReferencePanelOpen)}
-                                    cases={referenceCases.length > 0 ? referenceCases : undefined}
-                                    regulations={referenceRegulations.length > 0 ? referenceRegulations : undefined}
-                                />
-                            </div>
-                        </div>
+                        <SidePanel
+                            cases={referenceCases.length > 0 ? referenceCases : undefined}
+                            regulations={referenceRegulations.length > 0 ? referenceRegulations : undefined}
+                        />
                     </div>
                 </div>
             </div>
