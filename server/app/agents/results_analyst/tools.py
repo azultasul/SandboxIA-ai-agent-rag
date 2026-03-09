@@ -69,9 +69,9 @@ def _format_canonical(canonical: dict) -> list[str]:
         if company.get("company_name"):
             lines.append(f"- 회사명: {company['company_name']}")
         if company.get("representative"):
-            lines.append(f"- 대표자: {company['representative']}")
+            lines.append("- 대표자: <redacted>")
         if company.get("business_number"):
-            lines.append(f"- 사업자번호: {company['business_number']}")
+            lines.append("- 사업자번호: <redacted>")
         if company.get("main_business"):
             lines.append(f"- 주요 사업: {company['main_business']}")
 
