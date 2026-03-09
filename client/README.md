@@ -6,13 +6,15 @@
 
 | 영역 | 기술 |
 |------|------|
-| Framework | Next.js 16 (App Router) |
+| Framework | Next.js 16 (App Router), React 19 |
 | Language | TypeScript 5 |
-| UI | React 19, TailwindCSS 4, Radix UI |
-| State | Zustand 5 (Client), TanStack Query 5 (Server) |
+| Styling | TailwindCSS 4, Radix UI |
+| Server State | TanStack Query 5 |
+| Client State | Zustand 5 |
 | Form | React Hook Form + Zod |
-| Editor | TipTap (Rich Text) |
-| Auth | Supabase Auth |
+| Editor | Tiptap 3 (Rich Text) |
+| Auth | Supabase Auth (SSR) |
+| Icons | Lucide React |
 
 ## Getting Started
 
@@ -44,187 +46,156 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ### Development
 
 ```bash
-# 개발 서버 실행
-pnpm run dev
-
-# 빌드
-pnpm run build
-
-# 린트
-pnpm run lint
+pnpm run dev       # 개발 서버 (http://localhost:3000)
+pnpm run build     # 프로덕션 빌드
+pnpm run lint      # ESLint
+pnpm run format    # Prettier
 ```
-
-**Local:** http://localhost:3000
 
 ## Project Structure
 
 ```
-client/
-├── src/
-│   ├── app/                          # Next.js App Router
-│   │   ├── (marketing)/              # Public pages (landing, login, signup)
-│   │   │   ├── page.tsx              # Landing page
-│   │   │   ├── login/
-│   │   │   ├── signup/
-│   │   │   └── onboarding/
-│   │   ├── (dashboard)/              # Protected pages
-│   │   │   ├── dashboard/            # Project list
-│   │   │   ├── projects/[id]/        # Project detail
-│   │   │   │   ├── service/          # Step 1: Service structuring
-│   │   │   │   ├── eligibility/      # Step 2: Eligibility evaluation
-│   │   │   │   ├── track/            # Step 3: Track recommendation
-│   │   │   │   └── draft/            # Step 4: Application drafting
-│   │   │   └── my-account/           # User profile
-│   │   ├── auth/callback/            # OAuth callback
-│   │   ├── layout.tsx                # Root layout
-│   │   └── globals.css               # Global styles
-│   │
-│   ├── components/
-│   │   ├── ui/                       # Reusable UI primitives (20+)
-│   │   │   ├── button.tsx
-│   │   │   ├── card.tsx
-│   │   │   ├── modal.tsx
-│   │   │   ├── select.tsx
-│   │   │   ├── tabs.tsx
-│   │   │   ├── ai-loader.tsx         # Agent progress indicator
-│   │   │   ├── file-upload.tsx
-│   │   │   ├── tiptap-editor.tsx     # Rich text editor
-│   │   │   └── ...
-│   │   ├── features/                 # Feature components
-│   │   │   ├── analysis/             # AI analysis cards
-│   │   │   ├── dashboard/            # Dashboard (Pipeline, ProjectCard)
-│   │   │   ├── draft/                # Draft forms (FormSectionList, ReferencePanel)
-│   │   │   ├── landing/              # Landing page sections
-│   │   │   ├── project/              # Project (ServiceForm, StepNav)
-│   │   │   └── wizard/               # Navigation components
-│   │   └── layouts/                  # Layout components
-│   │       ├── DashboardLayout.tsx
-│   │       ├── Header.tsx
-│   │       ├── Sidebar.tsx
-│   │       └── Footer.tsx
-│   │
-│   ├── hooks/
-│   │   ├── queries/                  # TanStack Query (Read)
-│   │   │   ├── use-projects-query.ts
-│   │   │   ├── use-eligibility-query.ts
-│   │   │   ├── use-track-query.ts
-│   │   │   └── use-draft-query.ts
-│   │   ├── mutations/                # TanStack Mutation (Write)
-│   │   │   ├── use-service-mutation.ts
-│   │   │   ├── use-eligibility-mutation.ts
-│   │   │   ├── use-track-mutation.ts
-│   │   │   └── use-draft-mutation.ts
-│   │   └── streaming/
-│   │       └── use-agent-progress.ts # SSE subscription
-│   │
-│   ├── lib/
-│   │   ├── api/                      # API client functions
-│   │   │   ├── agents.ts
-│   │   │   ├── projects.ts
-│   │   │   ├── draft.ts
-│   │   │   ├── eligibility.ts
-│   │   │   └── track.ts
-│   │   ├── supabase/
-│   │   │   ├── client.ts             # Browser client
-│   │   │   └── server.ts             # Server client
-│   │   └── utils/
-│   │       ├── cn.ts                 # Class name utility
-│   │       ├── date.ts
-│   │       └── step-utils.ts
-│   │
-│   ├── stores/                       # Zustand stores
-│   │   ├── auth-store.ts             # Authentication state
-│   │   ├── project-store.ts          # Project status
-│   │   ├── ui-store.ts               # UI state (sidebar, loader)
-│   │   ├── user-store.ts             # User profile
-│   │   └── wizard-store.ts           # Step navigation & form data
-│   │
-│   ├── types/
-│   │   ├── api/                      # API types
-│   │   │   ├── project.ts
-│   │   │   ├── eligibility.ts
-│   │   │   ├── track.ts
-│   │   │   └── draft.ts
-│   │   └── data/                     # Internal types
-│   │       └── project.ts            # Enums (ProjectStatus, Track)
-│   │
-│   └── data/                         # Static data
-│       ├── formData.json             # Form schemas
-│       └── tracks.json               # Track definitions
+client/src/
+├── app/                              # App Router
+│   ├── (marketing)/                  # Public 페이지
+│   │   ├── page.tsx                 # 랜딩 페이지
+│   │   ├── login/                   # 로그인
+│   │   ├── signup/                  # 회원가입
+│   │   └── onboarding/             # 온보딩
+│   ├── (dashboard)/                  # Protected 페이지
+│   │   ├── dashboard/               # 프로젝트 목록
+│   │   ├── projects/[id]/
+│   │   │   ├── service/             # Step 1: 서비스 구조화
+│   │   │   ├── eligibility/         # Step 2: 대상성 판단
+│   │   │   ├── track/               # Step 3: 트랙 추천
+│   │   │   └── draft/               # Step 4: 신청서 작성
+│   │   └── my-account/             # 계정 관리
+│   └── auth/callback/               # OAuth 콜백
 │
-├── next.config.mjs                   # Next.js config (API rewrites)
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+├── components/
+│   ├── ui/                           # 재사용 UI 프리미티브
+│   │   ├── button.tsx, input.tsx, select.tsx
+│   │   ├── card.tsx, modal.tsx, confirm-modal.tsx
+│   │   ├── tabs.tsx, accordion.tsx, badge.tsx
+│   │   ├── ai-loader.tsx            # 에이전트 진행 상태 표시
+│   │   ├── file-upload.tsx          # 파일 드래그 앤 드롭
+│   │   └── tiptap-editor.tsx        # 리치 텍스트 에디터
+│   ├── features/
+│   │   ├── dashboard/               # 파이프라인, 프로젝트 카드
+│   │   ├── draft/                   # 양식 편집, 채팅, 참고자료, 다운로드
+│   │   ├── analysis/                # AI 분석 결과 카드
+│   │   ├── project/                 # 서비스 폼, 프로젝트 헤더
+│   │   └── wizard/                  # 스텝 네비게이션
+│   └── layouts/
+│       ├── DashboardLayout.tsx
+│       └── ProjectLayout.tsx
+│
+├── hooks/
+│   ├── queries/                      # TanStack Query (Read)
+│   │   ├── use-projects-query.ts
+│   │   ├── use-eligibility-query.ts
+│   │   ├── use-track-query.ts
+│   │   ├── use-draft-query.ts
+│   │   ├── use-chat-query.ts
+│   │   └── use-agent-nodes-query.ts
+│   ├── mutations/                    # TanStack Mutation (Write)
+│   │   ├── use-service-mutation.ts
+│   │   ├── use-eligibility-mutation.ts
+│   │   ├── use-track-mutation.ts
+│   │   ├── use-draft-mutation.ts
+│   │   ├── use-chat-mutation.ts
+│   │   ├── use-create-project-mutation.ts
+│   │   └── use-delete-project-mutation.ts
+│   └── streaming/
+│       └── use-agent-progress.ts    # SSE 진행 상태 구독
+│
+├── lib/
+│   ├── api/                          # API 클라이언트
+│   │   ├── agents.ts                # 에이전트 호출
+│   │   ├── projects.ts              # 프로젝트 CRUD
+│   │   ├── chat.ts                  # 채팅 API
+│   │   ├── eligibility.ts          # 대상성 결과
+│   │   ├── track.ts                # 트랙 추천 결과
+│   │   └── draft.ts                # 초안 데이터
+│   ├── supabase/
+│   │   ├── client.ts               # 브라우저 클라이언트
+│   │   └── server.ts               # 서버 클라이언트
+│   └── utils/                       # cn, date, form, step-utils
+│
+├── stores/                           # Zustand
+│   ├── auth-store.ts                # 인증 상태
+│   ├── project-store.ts             # 프로젝트 상태 (localStorage 영속)
+│   ├── ui-store.ts                  # UI 상태 (뷰 모드, 로더)
+│   └── wizard-store.ts             # 스텝 폼 상태
+│
+├── types/
+│   ├── api/                          # API 타입 (project, eligibility, track, draft, chat)
+│   └── data/                         # 내부 타입 (ProjectStatus, Track 등)
+│
+└── data/                             # 정적 데이터
+    ├── tracks.json                  # 트랙 정의
+    ├── formData.json                # 양식 스키마
+    └── form/                        # 트랙별 양식 (counseling, fastcheck, temporary, demonstration)
 ```
 
 ## Key Features
 
-### 1. Dashboard
+### 대시보드 (`/dashboard`)
 
-프로젝트 목록 관리 (필터링, 검색, 정렬, 페이지네이션)
+프로젝트 목록을 관리하고 진행 상황을 파악하는 메인 화면입니다.
 
-**경로:** `/dashboard`
+- 파이프라인 필터: 기업상담 / 신청서작성 / 결과대기 / 완료 상태별 카운트 및 필터링
+- 프로젝트 카드: 회사명, 서비스명, 상태, 최근 수정일 표시
+- 검색, 정렬(최신순/오래된순), 그리드/리스트 뷰 전환, 페이지네이션
+- 새 프로젝트 생성 모달
 
-```
-┌─────────────────────────────────────────────────┐
-│  Pipeline Filter (상담중 → 작성중 → 검토중 → 완료)  │
-├─────────────────────────────────────────────────┤
-│  [Search] [Sort] [Grid/List]                    │
-├─────────────────────────────────────────────────┤
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │ Project │ │ Project │ │ Project │           │
-│  │ Card    │ │ Card    │ │ Card    │           │
-│  └─────────┘ └─────────┘ └─────────┘           │
-├─────────────────────────────────────────────────┤
-│  Pagination                                     │
-└─────────────────────────────────────────────────┘
-```
+### Step 1. 서비스 구조화 (`/projects/[id]/service`)
 
-### 2. Service Structuring (Step 1)
+서비스 기본 정보를 입력하고 신청서 파일을 업로드하는 화면입니다.
 
-HWP 파일 업로드 및 서비스 정보 입력
+- 서비스 정보 입력: 회사명, 서비스명, 서비스 설명, 추가 메모
+- 신청 유형 선택: 상담신청/신속확인/임시허가/실증특례
+- 파일 업로드: HWP/PDF 신청서 (드래그 앤 드롭)
+- AI 분석 실행 → 서비스 구조화 + 대상성 판단
 
-**경로:** `/projects/[id]/service`
+### Step 2. 대상성 판단 (`/projects/[id]/eligibility`)
 
-- 파일 드래그 앤 드롭 (react-dropzone)
-- 회사명, 서비스명, 서비스 설명 폼
-- SSE 기반 실시간 진행 상태 표시
+AI가 규제 현황을 분석하여 샌드박스 신청 필요 여부를 판단합니다.
 
-### 3. Eligibility Evaluation (Step 2)
+- AI 분석 결과: 판정(필요/불필요/불명확) + 신뢰도
+- 판단 근거: 규제/법령/사례 기준별 근거 배지
+- 리스크: 바로 출시 시 예상 리스크
+- 최종 결정: 바로 시장 출시 / 규제 샌드박스 신청 선택
+- 참고 패널: 유사 승인 사례 + 관련 법령
 
-규제 샌드박스 대상 여부 판단 결과
+### Step 3. 트랙 추천 (`/projects/[id]/track`)
 
-**경로:** `/projects/[id]/eligibility`
+AI가 분석 결과를 바탕으로 최적의 트랙을 추천합니다.
 
-- 판정 결과 (필요/불필요/불명확)
-- 신뢰도 점수
-- 직접 출시 시 리스크 분석
-- 유사 승인 사례 & 관련 규제 참조
+- 트랙 카드(3개): 순위 배지, 점수, 상태 배지(추천/조건부/비추천)
+- 추천 이유: 긍정/부정/중립 아이콘과 근거
+- 트랙 선택: 카드 클릭으로 선택
+- 참고 패널: 유사 사례 + 관련 법령
 
-### 4. Track Recommendation (Step 3)
+### Step 4. 신청서 작성 (`/projects/[id]/draft`)
 
-최적 트랙 추천 (3종 비교)
+AI가 생성한 초안을 검토하고 수정하여 최종 문서를 완성합니다.
 
-**경로:** `/projects/[id]/track`
+- AI 초안 생성/재생성
+- 동적 양식: JSON 스키마 기반, 트랙별 다른 폼 렌더링
+- 필드 타입: 텍스트, Tiptap 리치 에디터, 날짜, 셀렉트, 체크박스, 동적 배열
+- 카드별 부분 저장
+- AI 채팅 패널: Chat Supervisor 에이전트 연동 실시간 Q&A
+- 참고자료 패널: 유사 승인 사례 + 관련 법령
+- 사이드 패널 전환: 참고자료 ↔ AI 채팅
+- 문서 다운로드: DOCX/PDF
 
-| 트랙 | 설명 |
-|------|------|
-| 신속확인 (quick_check) | 규제 적용 여부 신속 확인 |
-| 실증특례 (demo) | 제한된 조건에서 실증 |
-| 임시허가 (temp_permit) | 조건부 시장 진입 허용 |
+### 공통 UI
 
-### 5. Application Drafting (Step 4)
-
-신청서 초안 자동 작성 및 편집
-
-**경로:** `/projects/[id]/draft`
-
-- 트랙별 동적 폼 렌더링
-- TipTap 기반 리치 텍스트 편집
-- 카드별 자동 저장 (PATCH)
-- 유사 사례 참조 패널
-- DOCX 다운로드
+- SSE 기반 에이전트 진행 상태 표시 (노드별 체크리스트)
+- 참고 패널 접기/펼치기
+- 확인 모달 (재분석, 완료 등)
+- 스텝 네비게이션 바
 
 ## Architecture Patterns
 
@@ -232,116 +203,23 @@ HWP 파일 업로드 및 서비스 정보 입력
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    State Layer                      │
+│  Server State (TanStack Query)                      │
+│  • 프로젝트, 대상성, 트랙, 초안, 채팅 이력           │
 ├─────────────────────────────────────────────────────┤
-│  Server State        │  Client State                │
-│  (TanStack Query)    │  (Zustand)                   │
-│  ─────────────────   │  ───────────────             │
-│  • Project list      │  • Auth user                 │
-│  • Eligibility       │  • UI state (sidebar)        │
-│  • Track results     │  • Wizard step               │
-│  • Draft data        │  • Global loader             │
+│  Client State (Zustand)                             │
+│  • 인증, UI 상태 (뷰 모드, 로더), 위자드 스텝        │
 ├─────────────────────────────────────────────────────┤
 │  Form State (React Hook Form + Zod)                 │
-│  • Field values, validation, dirty state            │
+│  • 필드 값, 유효성 검증, dirty state                 │
 └─────────────────────────────────────────────────────┘
 ```
 
-### API Client Pattern
+### API Proxy
 
-```typescript
-// lib/api/agents.ts
-const response = await fetch(`${API_BASE}/agents/structure`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify(data),
-});
-```
-
-### TanStack Query Pattern
-
-```typescript
-// hooks/queries/use-projects-query.ts
-export const projectKeys = {
-  all: ["projects"] as const,
-  list: () => [...projectKeys.all, "list"] as const,
-  detail: (id: string) => [...projectKeys.all, "detail", id] as const,
-};
-
-export function useProjectsQuery() {
-  return useQuery({
-    queryKey: projectKeys.list(),
-    queryFn: fetchProjects,
-  });
-}
-```
-
-### SSE Progress Streaming
-
-```typescript
-// hooks/streaming/use-agent-progress.ts
-export function useAgentProgress({
-  projectId,
-  useGlobalLoader,
-  globalLoaderMessage,
-}: Options) {
-  useEffect(() => {
-    const eventSource = new EventSource(
-      `${API_BASE}/agents/progress/subscribe/${projectId}`
-    );
-
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      // Update progress state
-    };
-
-    return () => eventSource.close();
-  }, [projectId]);
-}
-```
-
-## UI Components
-
-shadcn/ui 스타일 기반 Radix UI 컴포넌트:
-
-| 컴포넌트 | 용도 |
-|----------|------|
-| `Button` | 버튼 (variant, size) |
-| `Card` | 카드 컨테이너 |
-| `Modal` | 모달 다이얼로그 |
-| `Select` | 드롭다운 선택 |
-| `Tabs` | 탭 네비게이션 |
-| `AILoader` | 에이전트 진행 상태 표시 |
-| `FileUpload` | 파일 드래그 앤 드롭 |
-| `TiptapEditor` | 리치 텍스트 편집기 |
-
-## Authentication
-
-Supabase Auth를 사용한 인증:
-
-1. `AuthProvider`가 앱 초기화 시 세션 복원
-2. `auth-store`에서 토큰 관리
-3. API 요청 시 `Authorization: Bearer {token}` 헤더 추가
-4. Protected route는 `user` 존재 여부로 접근 제어
-
-## Performance Optimizations
-
-- **React Compiler**: 자동 메모이제이션 (babel-plugin-react-compiler)
-- **TanStack Query**: 캐싱, 중복 요청 제거, 백그라운드 리페치
-- **Zustand Persist**: 로컬 스토리지 기반 상태 복원
-- **Next.js Image**: 이미지 자동 최적화
-- **Code Splitting**: 동적 import로 번들 분할
-
-## Configuration
-
-### next.config.mjs
+`next.config.mjs`에서 API 프록시를 설정하여 CORS를 처리합니다:
 
 ```javascript
-// API 프록시 설정 (CORS 우회)
-async rewrites() {
+rewrites() {
   return [
     { source: "/api/v1/:path*", destination: `${BACKEND_URL}/api/v1/:path*` },
     { source: "/api/users/:path*", destination: `${BACKEND_URL}/api/users/:path*` },
@@ -349,136 +227,60 @@ async rewrites() {
 }
 ```
 
-### Path Aliases
+### SSE Progress Streaming
 
-```json
-// tsconfig.json
-{
-  "compilerOptions": {
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  }
-}
+에이전트 실행 중 실시간 진행 상태를 `EventSource`로 구독합니다:
+
+```typescript
+// hooks/streaming/use-agent-progress.ts
+const eventSource = new EventSource(
+  `${API_BASE}/agents/progress/subscribe/${projectId}`
+);
+// Events: agent_start, node_start, node_end, agent_end, error
 ```
 
-## Scripts
+### Authentication
 
-| 명령어 | 설명 |
-|--------|------|
-| `pnpm run dev` | 개발 서버 (http://localhost:3000) |
-| `pnpm run build` | 프로덕션 빌드 |
-| `pnpm run start` | 프로덕션 서버 |
-| `pnpm run lint` | ESLint 실행 |
+Supabase Auth 기반 인증:
+1. `AuthProvider`가 앱 초기화 시 세션 복원
+2. `auth-store`에서 토큰 관리
+3. API 요청 시 `Authorization: Bearer {token}` 헤더 추가
+4. Protected route는 대시보드 레이아웃에서 접근 제어
+
+### Performance
+
+- React Compiler 자동 메모이제이션
+- TanStack Query 캐싱, 중복 요청 제거
+- Zustand Persist (localStorage 기반 상태 복원)
+- 동적 import 코드 스플리팅
 
 ## Deployment
 
-### Vercel 배포
-
-#### 1. Vercel CLI 배포
+### Vercel
 
 ```bash
-# Vercel CLI 설치
-npm i -g vercel
-
-# 로그인
-vercel login
-
-# 프로덕션 배포
+# Vercel CLI 배포
 cd client
 vercel --prod
+
+# 또는 GitHub 연동 자동 배포 (main 브랜치 push 시)
 ```
 
-#### 2. GitHub 연동 (권장)
-
-1. [Vercel Dashboard](https://vercel.com/dashboard)에서 "New Project" 클릭
-2. GitHub 저장소 연결
-3. Root Directory를 `client`로 설정
-4. 환경 변수 설정 후 Deploy
-
 **빌드 설정:**
+
 | 설정 | 값 |
 |------|-----|
 | Framework Preset | Next.js |
 | Root Directory | `client` |
 | Build Command | `pnpm run build` |
-| Output Directory | `.next` |
 | Install Command | `pnpm install` |
 
-#### 환경 변수 (Vercel Dashboard)
+**환경 변수 (Vercel Dashboard):**
 
 ```env
-# Backend API
 NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.com
-
-# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-#### 배포 아키텍처
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Vercel Platform                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                   Edge Network (CDN)                 │   │
-│  │        Global distribution for static assets         │   │
-│  └───────────────────────┬─────────────────────────────┘   │
-│                          │                                  │
-│  ┌───────────────────────▼─────────────────────────────┐   │
-│  │                  Next.js Runtime                     │   │
-│  │   ┌─────────────┐  ┌─────────────┐  ┌───────────┐   │   │
-│  │   │ Static Gen  │  │    SSR      │  │   ISR     │   │   │
-│  │   │  (pages)    │  │ (dynamic)   │  │ (revalid) │   │   │
-│  │   └─────────────┘  └─────────────┘  └───────────┘   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Features:                                                  │
-│  • Automatic HTTPS                                          │
-│  • Preview Deployments (PR별 자동 배포)                      │
-│  • Analytics & Web Vitals                                   │
-│  • Edge Functions                                           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-           │
-           │ API Requests (HTTPS)
-           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   AWS EC2 (Backend)                          │
-│                   FastAPI + ChromaDB                         │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### Preview Deployments
-
-GitHub PR 생성 시 자동으로 Preview URL 생성:
-- `https://sandboxia-<branch>-<team>.vercel.app`
-- PR 머지 전 기능 테스트 가능
-- PR 코멘트에 자동으로 Preview URL 추가
-
-#### 도메인 설정
-
-```bash
-# 커스텀 도메인 추가
-vercel domains add your-domain.com
-
-# DNS 설정 후 SSL 자동 발급
-```
-
-#### 트러블슈팅
-
-**빌드 실패 시:**
-```bash
-# 로컬에서 빌드 테스트
-pnpm run build
-
-# 환경 변수 확인
-vercel env ls
-```
-
-**API 연결 오류 시:**
-- `NEXT_PUBLIC_API_BASE_URL`이 올바르게 설정되었는지 확인
-- Backend CORS 설정에 Vercel 도메인 추가 필요
+GitHub PR 생성 시 자동으로 Preview URL이 생성됩니다.

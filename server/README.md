@@ -6,13 +6,15 @@
 
 | 영역 | 기술 |
 |------|------|
-| Framework | FastAPI, Uvicorn |
-| AI Agent | LangGraph, LangChain |
-| LLM | OpenAI GPT-4o / GPT-4o-mini |
-| Vector DB | ChromaDB |
+| Framework | FastAPI 0.128, Uvicorn |
+| AI Agent | LangGraph 1.0, LangChain 1.2 |
+| LLM | OpenAI GPT-4o, GPT-4o-mini |
+| Vector DB | Qdrant (Production), ChromaDB (Development) |
+| Search | Hybrid Search (Dense + SPLADE Sparse) |
 | Database | Supabase (PostgreSQL) |
 | Storage | Supabase Storage |
-| Auth | Supabase Auth (JWT) |
+| Auth | Supabase Auth (JWT ES256) |
+| Document | docxtpl (DOCX), LibreOffice (PDF) |
 | Package | uv (Python 3.12) |
 
 ## Getting Started
@@ -21,7 +23,7 @@
 
 - Python 3.12+
 - uv (Python package manager)
-- Docker (ChromaDB 서버용, 선택)
+- Docker (Vector DB용)
 - LibreOffice (PDF 변환용)
 
 ### Installation
@@ -39,32 +41,21 @@ uv sync
 # OpenAI
 OPENAI_API_KEY=sk-...
 
-# Tavily (웹 검색, 선택)
-TAVILY_API_KEY=tvly-...
-
-# Upstage (대체 임베딩, 선택)
-UPSTAGE_API_KEY=up_...
-
-# 법령 API (law.go.kr)
-LAW_API_BASE_URL=https://www.law.go.kr
-LAW_API_OC=your-api-key
-
 # LLM 설정
 LLM_MODEL=gpt-4o-mini
 LLM_EMBEDDING_MODEL=text-embedding-3-large
 
-# ChromaDB
-CHROMA_MODE=persistent           # persistent | http | ephemeral
-CHROMA_HOST=localhost            # http 모드용
-CHROMA_PORT=8000                 # http 모드용
-CHROMA_PERSIST_DIR=./data/chroma # persistent 모드용
-
-# CORS
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-
 # Supabase
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_SERVICE_KEY=your-service-role-key
+
+# Vector DB (개발: persistent, 배포: qdrant)
+VECTORDB_TYPE=chroma
+CHROMA_MODE=persistent
+CHROMA_PERSIST_DIR=./data/chroma
+
+# CORS
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
 # Google Drive (RAG 데이터)
 R1_DATA_ID=your-folder-id
@@ -74,6 +65,10 @@ R2_DATA_ID=your-folder-id
 DRAFT_TEMPLATE_FASTCHECK_ID=your-file-id
 DRAFT_TEMPLATE_TEMPORARY_ID=your-file-id
 DRAFT_TEMPLATE_DEMONSTRATION_ID=your-file-id
+
+# 법령 API (law.go.kr)
+LAW_API_BASE_URL=https://www.law.go.kr
+LAW_API_OC=your-api-key
 ```
 
 ### Vector DB Setup
@@ -84,18 +79,12 @@ RAG 데이터 수집 및 Vector DB 구축:
 # R1: 규제제도 데이터 (Google Drive)
 uv run python scripts/collect_regulations.py
 
+# R2: 승인사례 데이터
+uv run python scripts/collect_cases.py
+
 # R3: 법령 데이터 (법령 API)
 uv run python scripts/collect_laws.py
 ```
-
-**R1 데이터 (규제제도):**
-- ICT 규제샌드박스 트랙별 정의, 절차, 요건, 심사기준
-
-**R2 데이터 (승인사례):**
-- 승인/반려 사례, 조건, 실증 범위 (JSON 형태)
-
-**R3 데이터 (법령):**
-- 의료법, 전자금융거래법, 개인정보보호법 등
 
 ### Run Server
 
@@ -103,7 +92,6 @@ uv run python scripts/collect_laws.py
 uv run uvicorn app.main:app --reload
 ```
 
-**Endpoints:**
 - API: http://127.0.0.1:8000
 - Swagger UI: http://127.0.0.1:8000/docs
 - Health Check: http://127.0.0.1:8000/health
@@ -113,167 +101,151 @@ uv run uvicorn app.main:app --reload
 ```
 server/
 ├── app/
-│   ├── main.py                       # FastAPI app entry
+│   ├── main.py                       # FastAPI 앱 진입점
 │   │
 │   ├── agents/                       # LangGraph AI Agents
-│   │   ├── service_structurer/       # Step 1: HWP → Canonical
-│   │   │   ├── state.py              # TypedDict state
-│   │   │   ├── graph.py              # StateGraph definition
-│   │   │   ├── nodes.py              # Node functions
-│   │   │   └── prompts.py            # LLM prompts
-│   │   ├── eligibility_evaluator/    # Step 2: Eligibility check
-│   │   │   ├── state.py
-│   │   │   ├── graph.py
-│   │   │   ├── nodes.py
-│   │   │   └── tools.py              # rule_screener tool
-│   │   ├── track_recommender/        # Step 3: Track recommendation
-│   │   │   ├── state.py
-│   │   │   ├── graph.py
-│   │   │   └── nodes.py
-│   │   ├── application_drafter/      # Step 4: Draft generation
-│   │   │   ├── state.py
-│   │   │   ├── graph.py
-│   │   │   └── nodes.py
-│   │   └── utils/                    # Agent utilities
-│   │       ├── streaming.py          # Progress tracking wrapper
-│   │       └── ...
+│   │   ├── service_structurer/       # Step 1: HWP 파싱 → Canonical Structure
+│   │   │   ├── state.py, graph.py, nodes.py, tools.py, prompts.py
+│   │   ├── eligibility_evaluator/    # Step 2: 대상성 판단
+│   │   │   ├── state.py, graph.py, nodes.py, tools.py, prompts.py, schemas.py
+│   │   ├── track_recommender/        # Step 3: 트랙 추천
+│   │   │   ├── state.py, graph.py, nodes.py, tools.py, prompts.py
+│   │   ├── application_drafter/      # Step 4: 신청서 초안 생성
+│   │   │   ├── state.py, graph.py, nodes.py, form_schema.py, prompts.py
+│   │   ├── chat_supervisor/          # 채팅: 질문 라우팅 (Supervisor)
+│   │   │   ├── state.py, graph.py, nodes.py, prompts.py
+│   │   ├── rag_expert/              # 채팅 서브: 규제/사례/법령 RAG 검색
+│   │   │   ├── nodes.py, prompts.py
+│   │   ├── results_analyst/          # 채팅 서브: 프로젝트 분석 결과 조회
+│   │   │   ├── nodes.py, prompts.py, tools.py
+│   │   └── utils/
+│   │       └── streaming.py          # SSE 진행 상태 래퍼
 │   │
 │   ├── api/
-│   │   ├── routes/                   # API endpoints
-│   │   │   ├── agents.py             # Agent execution endpoints
-│   │   │   ├── agent_progress.py     # SSE progress streaming
-│   │   │   ├── documents.py          # DOCX/PDF generation
-│   │   │   ├── files.py              # File download
-│   │   │   └── users.py              # User management
-│   │   ├── schemas/                  # Pydantic request/response
-│   │   └── deps.py                   # Dependencies (auth)
+│   │   ├── routes/
+│   │   │   ├── agents.py            # 에이전트 실행 API
+│   │   │   ├── agent_progress.py    # SSE 진행 상태 스트리밍
+│   │   │   ├── chat.py              # 채팅 API
+│   │   │   ├── documents.py         # DOCX/PDF 문서 생성
+│   │   │   ├── files.py             # 파일 다운로드
+│   │   │   └── users.py             # 사용자 관리
+│   │   ├── schemas/                  # Pydantic 요청/응답 모델
+│   │   └── deps.py                   # 의존성 (JWT 인증)
 │   │
-│   ├── services/                     # Business logic
-│   │   ├── structure_service.py
-│   │   ├── eligibility_service.py
-│   │   ├── track_service.py
-│   │   ├── draft_service.py
-│   │   ├── project_service.py
-│   │   ├── document_generator.py     # DOCX/PDF generation
+│   ├── services/
+│   │   ├── structure_service.py      # 서비스 구조화 로직
+│   │   ├── eligibility_service.py    # 대상성 판단 로직
+│   │   ├── track_service.py          # 트랙 추천 로직
+│   │   ├── draft_service.py          # 초안 생성 로직
+│   │   ├── chat_service.py           # 채팅 이력 관리
+│   │   ├── project_service.py        # 프로젝트 CRUD
+│   │   ├── document_generator.py     # DOCX 템플릿 렌더링
+│   │   ├── law_api.py                # 법령 API 연동
 │   │   └── parsers/
-│   │       └── hwp_parser.py         # HWP file parsing
+│   │       └── hwp_parser.py         # HWP 파일 파싱
 │   │
-│   ├── tools/
-│   │   └── shared/
-│   │       └── rag/                  # Shared RAG tools
-│   │           ├── regulation_rag.py # R1: 규제제도
-│   │           ├── case_rag.py       # R2: 승인사례
-│   │           └── domain_law_rag.py # R3: 도메인법령
+│   ├── tools/shared/rag/             # 공용 RAG Tools
+│   │   ├── regulation_rag.py         # R1: 규제제도 & 절차
+│   │   ├── case_rag.py               # R2: 승인사례
+│   │   └── domain_law_rag.py         # R3: 도메인별 법령
 │   │
 │   ├── core/
-│   │   ├── config.py                 # Settings, env vars
-│   │   ├── llm.py                    # LLM instances
-│   │   ├── constants.py              # Collection names, mappings
-│   │   ├── progress_store.py         # SSE progress tracking
-│   │   └── exceptions.py             # Custom exceptions
+│   │   ├── config.py                 # Settings (환경 변수)
+│   │   ├── llm.py                    # LLM 인스턴스 (gpt-4o, gpt-4o-mini)
+│   │   ├── constants.py              # 컬렉션명, 트랙 매핑
+│   │   ├── progress_store.py         # SSE 진행 상태 추적
+│   │   └── exceptions.py             # 커스텀 예외
 │   │
 │   ├── db/
-│   │   └── vector.py                 # ChromaDB client
+│   │   └── vector.py                 # Vector DB 추상 레이어 (ChromaDB / Qdrant)
 │   │
-│   ├── rag/
-│   │   ├── config.py                 # Chunking/embedding configs
-│   │   ├── chunkers/                 # Document chunkers
-│   │   │   └── r3_law.py             # Law-specific chunker
-│   │   └── collectors/               # Data collectors
-│   │       └── r3_collector.py
-│   │
-│   └── data/
-│       ├── form/                     # Form schemas (JSON)
-│       │   ├── fastcheck.json
-│       │   ├── temporary.json
-│       │   ├── demonstration.json
-│       │   └── counseling.json
-│       └── canonical/                # Canonical structure schema
-│           └── schema.json
+│   └── rag/
+│       ├── config.py                 # 청킹/임베딩 설정
+│       ├── chunkers/                 # 문서 청커
+│       └── collectors/               # 데이터 수집기
 │
-├── eval/                             # RAG evaluation
-│   ├── metrics.py                    # Retrieval metrics
-│   ├── llm_metrics.py                # RAGAS-based metrics
-│   └── r3/
-│       ├── configs/                  # Chunking/embedding presets
-│       ├── evalset.json              # Evaluation dataset
-│       ├── run_evaluation.py         # Retrieval evaluation
-│       └── run_llm_evaluation.py     # LLM evaluation
+├── eval/                             # RAG 평가 시스템
+│   ├── metrics.py                    # Retrieval 평가 지표
+│   ├── llm_metrics.py                # RAGAS 기반 LLM 평가
+│   ├── r1/, r2/, r3/                 # 도메인별 평가셋 및 실행 스크립트
 │
 ├── scripts/
-│   ├── collect_regulations.py        # R1 data collection
-│   └── collect_laws.py               # R3 data collection
+│   ├── collect_regulations.py        # R1 데이터 수집
+│   ├── collect_cases.py              # R2 데이터 수집
+│   ├── collect_laws.py               # R3 데이터 수집
+│   └── create_test_user.py           # 테스트 사용자 생성
 │
-├── test/                             # Tests
-│   ├── regulation_rag.py
-│   └── domain_law_rag.py
-│
-├── main.py                           # Entry point
-├── pyproject.toml                    # Dependencies
-├── docker-compose.yml                # ChromaDB + services
-└── Dockerfile
+├── docker-compose.yml                # FastAPI + Qdrant
+├── Dockerfile                        # Multi-stage build (uv + Python 3.12)
+└── pyproject.toml
 ```
 
 ## Agent Architecture
 
 ### LangGraph Workflow
 
-각 에이전트는 `StateGraph` 패턴을 사용:
+각 에이전트는 `StateGraph` + `TypedDict` 패턴을 사용합니다. 재귀 제한은 15로 설정되어 있습니다.
 
-```python
-class AgentState(TypedDict):
-    """Agent state with message accumulation"""
-    messages: Annotated[list, add_messages]
-    # ... input fields
-    # ... intermediate results
-    # ... output fields
+### 구현된 에이전트
 
-graph = StateGraph(AgentState)
-graph.add_node("node_name", node_function)
-graph.add_edge("node_a", "node_b")
-graph.set_entry_point("start_node")
-agent = graph.compile()
-```
+**파이프라인 에이전트**
 
-### Implemented Agents
+| Agent | Workflow | RAG |
+|-------|----------|-----|
+| **Service Structurer** | `parse_hwp` → `build_structure` | R3 |
+| **Eligibility Evaluator** | `screen` → `search_all_rag` → `compose_decision` → `generate_evidence` | R1, R2, R3 |
+| **Track Recommender** | `retrieve_cases` → `score_all_tracks` → `retrieve_definitions` → `generate_recommendation` | R1, R2 |
+| **Application Drafter** | `load_form_schema` → `retrieve_context` → `generate_draft` | R1, R2, R3 |
 
-| Agent | Workflow | RAG Tools |
-|-------|----------|-----------|
-| **1. Service Structurer** | `parse_hwp` → `build_structure` | - |
-| **2. Eligibility Evaluator** | `screen` → `search_all_rag` → `compose_decision` → `generate_evidence` | R1, R2, R3 |
-| **3. Track Recommender** | `retrieve_cases` → `score_all_tracks` → `retrieve_definitions` → `generate_recommendation` | R1, R2 |
-| **4. Application Drafter** | `load_form_schema` → `retrieve_context` → `generate_draft` | R1, R2, R3 |
+**채팅 에이전트**
 
-### Data Flow
+| Agent | Workflow | 모델 |
+|-------|----------|------|
+| **Chat Supervisor** | `supervisor` → 조건부 라우팅 | gpt-4o-mini |
+| ↳ **Results Analyst** | Supabase에서 프로젝트 데이터 조회 → LLM 응답 생성 | gpt-4o-mini |
+| ↳ **RAG Expert** | R1/R2/R3 병렬 검색 (ThreadPoolExecutor) → LLM 응답 생성 | gpt-4o |
+
+### Chat Supervisor 라우팅
+
+Chat Supervisor는 사용자 질문의 의도를 분류하여 적절한 서브 에이전트로 라우팅합니다.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    Client Input (HWP + Form)                  │
-└───────────────────────────┬──────────────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Step 1: Service Structurer                       │
-│              Output: canonical_structure                      │
-└───────────────────────────┬──────────────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Step 2: Eligibility Evaluator                    │
-│              Output: eligibility_label, evidence              │
-└───────────────────────────┬──────────────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Step 3: Track Recommender                        │
-│              Output: recommended_track, comparison            │
-└───────────────────────────┬──────────────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Step 4: Application Drafter                      │
-│              Output: application_draft (form values)          │
-└───────────────────────────┬──────────────────────────────────┘
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Document Generation (DOCX/PDF)                   │
-└──────────────────────────────────────────────────────────────┘
+사용자 메시지 → Supervisor (gpt-4o-mini, 의도 분류 + 쿼리 리라이팅)
+                  │
+                  ├→ Results Analyst : "이 프로젝트의~" 등 프로젝트별 분석 결과 질문
+                  │   └─ Supabase 조회 (대상성 판정, 트랙 추천 점수, 서비스 정보)
+                  │
+                  ├→ RAG Expert      : 규제 제도, 절차, 승인 사례, 법령 관련 질문
+                  │   └─ R1/R2/R3 병렬 검색 (top_k=3) → 검색 결과 기반 응답
+                  │
+                  └→ Decline         : 서비스 범위 외 질문 (고정 안내 메시지)
+```
+
+**Results Analyst** 데이터 조회 함수:
+- `fetch_project_summary()` — 서비스명, 트랙, 현재 단계
+- `fetch_eligibility_summary()` — 대상성 판정 + 확신도 + 판단 근거
+- `fetch_track_summary()` — 트랙별 추천 점수 및 사유
+- `fetch_all_project_data()` — 위 데이터 통합 조회
+
+**RAG Expert** 검색 도구:
+- R1 `search_regulation()` — 규제 제도 & 절차
+- R2 `search_case()` — 승인 사례
+- R3 `search_domain_law()` — 도메인별 법령
+
+### 데이터 흐름
+
+```
+Client Input (HWP + Form)
+         ↓
+Step 1: Service Structurer → Canonical Structure
+         ↓
+Step 2: Eligibility Evaluator → 대상성 판정 + 근거
+         ↓
+Step 3: Track Recommender → 트랙 추천 + 비교
+         ↓
+Step 4: Application Drafter → 신청서 초안
+         ↓
+Document Generation (DOCX/PDF)
 ```
 
 ## API Endpoints
@@ -282,77 +254,124 @@ agent = graph.compile()
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/agents/structure` | Step 1: Service structuring |
-| POST | `/api/v1/agents/eligibility` | Step 2: Eligibility evaluation |
-| PATCH | `/api/v1/agents/eligibility/{id}/final-decision` | Update final decision |
-| POST | `/api/v1/agents/track` | Step 3: Track recommendation |
-| GET | `/api/v1/agents/track/{id}` | Get cached track results |
-| POST | `/api/v1/agents/draft` | Step 4: Draft generation |
-| PATCH | `/api/v1/agents/draft/{id}` | Update draft card |
+| POST | `/api/v1/agents/structure` | Step 1: 서비스 구조화 |
+| POST | `/api/v1/agents/eligibility` | Step 2: 대상성 판단 |
+| PATCH | `/api/v1/agents/eligibility/{id}/final-decision` | 최종 결정 업데이트 |
+| POST | `/api/v1/agents/track` | Step 3: 트랙 추천 |
+| GET | `/api/v1/agents/track/{id}` | 캐싱된 트랙 결과 조회 |
+| POST | `/api/v1/agents/draft` | Step 4: 초안 생성 |
+| PATCH | `/api/v1/agents/draft/{id}` | 초안 카드 부분 업데이트 |
+
+### Chat Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/chat` | 메시지 전송 → 에이전트 응답 |
+| GET | `/api/v1/chat/{project_id}/history` | 대화 이력 조회 |
+| DELETE | `/api/v1/chat/{project_id}/history` | 대화 이력 초기화 |
 
 ### Progress Streaming (SSE)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/agents/progress/nodes/{agent_type}` | Get agent node definitions |
-| GET | `/api/v1/agents/progress/nodes` | Get all agents' nodes |
-| GET | `/api/v1/agents/progress/subscribe/{project_id}` | SSE subscription |
+| GET | `/api/v1/agents/progress/nodes/{agent_type}` | 에이전트 노드 정의 |
+| GET | `/api/v1/agents/progress/nodes` | 전체 에이전트 노드 |
+| GET | `/api/v1/agents/progress/subscribe/{project_id}` | SSE 구독 |
 
-### Document & Files
+**SSE 이벤트:** `agent_start`, `node_start`, `node_end`, `agent_end`, `error`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/documents/download/{form_id}` | Download DOCX/PDF |
-| GET | `/api/v1/files/download/{file_id}` | Download uploaded file |
-
-### User Management
+### Document & File
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| DELETE | `/api/users/me` | Delete user account |
+| GET | `/api/v1/documents/{project_id}/{form_id}/docx` | DOCX 다운로드 |
+| GET | `/api/v1/documents/{project_id}/{form_id}/pdf` | PDF 다운로드 |
+| GET | `/api/v1/files/download/{file_id}` | 업로드 파일 다운로드 |
+
+### User
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| DELETE | `/api/users/me` | 계정 삭제 |
 
 ## Shared RAG Tools
 
-### R1: 규제제도 & 절차 RAG
+### R1: 규제제도 & 절차
 
 ```python
 # app/tools/shared/rag/regulation_rag.py
-async def search_regulations(query: str, top_k: int = 5) -> list[RegulationResult]:
-    """트랙 정의, 절차, 요건, 심사기준 검색"""
+@tool
+def search_regulations(query, track_filter=None, category_filter=None, ministry_filter=None)
+    → RegulationSearchOutput
+# 컬렉션: rag_regulations
 ```
 
-### R2: 승인 사례 RAG
+### R2: 승인사례
 
 ```python
 # app/tools/shared/rag/case_rag.py
-async def search_cases(query: str, top_k: int = 5) -> list[CaseResult]:
-    """승인/반려 사례, 조건, 실증 범위 검색"""
+@tool
+def search_cases(query, track_filter=None)
+    → CaseSearchOutput
+# 컬렉션: rag_cases
 ```
 
-### R3: 도메인별 법령 RAG
+### R3: 도메인별 법령
 
 ```python
 # app/tools/shared/rag/domain_law_rag.py
-async def search_laws(query: str, top_k: int = 5) -> list[LawResult]:
-    """도메인별 규제/법령 검색"""
+@tool
+def search_domain_laws(query, domain_filter=None)
+    → DomainLawSearchOutput
+# 컬렉션: rag_laws
+# 도메인: healthcare, finance, data, privacy, telecom, regulation
 ```
+
+**Relevance Threshold:** 0.25 이하 결과는 필터링됩니다.
+
+## Vector DB
+
+### 추상 레이어
+
+`app/db/vector.py`에서 ChromaDB와 Qdrant를 추상화하여 동일한 인터페이스로 사용합니다.
+
+```python
+store = get_vector_store()  # 환경 변수에 따라 ChromaDB 또는 Qdrant 반환
+results = store.search(collection, query_embedding, top_k=5, filters=...)
+```
+
+### Hybrid Search (Qdrant)
+
+Dense(임베딩) + Sparse(SPLADE) 검색을 결합합니다.
+
+| 파라미터 | 기본값 | 설명 |
+|----------|--------|------|
+| Alpha | 0.7 | Dense 70%, Sparse 30% 가중치 |
+| Sparse Model | SPLADE_PP_en_v1 | BM25 대비 향상된 sparse 임베딩 |
+
+### 컬렉션
+
+| Collection | 설명 |
+|------------|------|
+| `rag_regulations` | R1: 규제제도 |
+| `rag_cases` | R2: 승인사례 |
+| `rag_laws` | R3: 도메인법령 |
 
 ## Document Generation
 
-### Template System
+### DOCX 템플릿
 
-`docxtpl` + Jinja2 기반 DOCX 템플릿:
+`docxtpl` + Jinja2 기반 템플릿 렌더링:
 
 ```python
 # app/services/document_generator.py
-def generate_document(form_id: str, form_values: dict) -> bytes:
-    """DOCX 문서 생성"""
-    template = load_template(form_id)
-    context = build_context(form_values)
-    return template.render(context)
+# - 날짜 형식 변환 (한국어 → ISO)
+# - 체크박스 (√) 처리
+# - SafeDict로 undefined 방지
+# - 배열 행 확장 (조직, 인물 정보)
 ```
 
-### PDF Conversion
+### PDF 변환
 
 LibreOffice CLI 사용:
 
@@ -360,197 +379,58 @@ LibreOffice CLI 사용:
 # macOS
 brew install --cask libreoffice
 
-# Ubuntu/Debian
+# Ubuntu/Debian (Docker)
 apt-get install libreoffice
 ```
 
 ## Authentication
 
-Supabase Auth JWT 기반:
+Supabase Auth JWT (ES256) 기반 인증:
 
 ```python
 # app/api/deps.py
 async def get_auth_user(request: Request) -> AuthUser:
-    """JWT 토큰 검증 및 사용자 정보 추출"""
-    token = request.headers.get("Authorization")
-    # Decode & validate JWT
+    # Supabase JWKS 공개키로 JWT 검증
+    # 알고리즘: ES256 (ECC P-256)
+    # Audience: "authenticated"
 ```
-
-## Progress Tracking
-
-SSE 기반 실시간 진행 상태:
-
-```python
-# app/core/progress_store.py
-progress_store.start(project_id, agent_type)
-progress_store.update_node(project_id, node_name, "node_start")
-progress_store.update_node(project_id, node_name, "node_end")
-progress_store.end(project_id)
-```
-
-**Events:**
-- `agent_start` - 에이전트 시작
-- `node_start` - 노드 실행 시작
-- `node_end` - 노드 실행 완료
-- `agent_end` - 에이전트 완료
-- `error` - 에러 발생
 
 ## RAG Evaluation
 
-RAGAS 기반 평가 시스템:
-
 ```bash
-# Retrieval 평가 (빠름, 비용 없음)
+# Retrieval 평가 (비용 없음)
 uv run python eval/r3/run_evaluation.py --top_k 5
 
-# LLM-as-Judge 평가 (RAGAS)
+# LLM-as-Judge 평가 (RAGAS, OpenAI API 비용 발생)
 uv run python eval/r3/run_llm_evaluation.py --limit 5
 ```
 
-**평가 지표:**
-
-| 카테고리 | 지표 | 설명 |
-|----------|------|------|
-| Retrieval | Must-Have Recall@K | 필수 조항 검색률 |
-| | Recall@K | 전체 정답 검색률 |
-| | MRR | 첫 번째 정답의 역순위 |
-| Generation | Faithfulness | 컨텍스트 기반 여부 |
-| | Answer Relevancy | 질문-응답 적합도 |
-
-## Database Schema
+## Database
 
 ### Supabase Tables
 
 | Table | Description |
 |-------|-------------|
-| `projects` | 프로젝트 메타데이터 (canonical, results) |
-| `project_files` | 업로드 파일 참조 |
+| `projects` | 프로젝트 메타데이터 (canonical, application_draft, chat_history, status, track) |
+| `eligibility_results` | 대상성 판단 결과 |
+| `track_results` | 트랙 추천 결과 |
+| `project_files` | 업로드 파일 메타데이터 |
 | `users` | 사용자 프로필 |
-
-### Vector DB Collections
-
-| Collection | Description |
-|------------|-------------|
-| `rag_regulations` | R1: 규제제도 |
-| `rag_cases` | R2: 승인사례 |
-| `rag_laws` | R3: 도메인법령 |
-
-## Scripts
-
-| 명령어 | 설명 |
-|--------|------|
-| `uv run uvicorn app.main:app --reload` | 개발 서버 |
-| `uv run python scripts/collect_regulations.py` | R1 데이터 수집 |
-| `uv run python scripts/collect_laws.py` | R3 데이터 수집 |
-| `uv run pytest` | 테스트 실행 |
-
-## Docker
-
-```bash
-# ChromaDB 서버 실행
-docker-compose up -d chroma
-
-# 전체 서비스 실행
-docker-compose up -d
-```
-
-## Data Refresh
-
-Vector DB 재구축:
-
-```bash
-# 기존 데이터 삭제
-rm -rf data/chroma
-
-# 데이터 재수집
-uv run python scripts/collect_regulations.py
-uv run python scripts/collect_laws.py
-```
 
 ## Deployment
 
-### AWS EC2 + Docker Compose 배포
-
-#### 배포 아키텍처
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        AWS EC2 Instance                              │
-│                     (Ubuntu 22.04 / t3.medium)                       │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐ │
-│  │                     Docker Compose                             │ │
-│  │                                                                │ │
-│  │  ┌─────────────────────────┐  ┌─────────────────────────────┐ │ │
-│  │  │     sandbox-api         │  │      sandbox-chroma         │ │ │
-│  │  │     (FastAPI)           │  │      (ChromaDB)             │ │ │
-│  │  │                         │  │                             │ │ │
-│  │  │  Port: 8000             │  │  Port: 8001 (internal)      │ │ │
-│  │  │  Image: ghcr.io/...     │  │  Image: chromadb/chroma     │ │ │
-│  │  │                         │  │                             │ │ │
-│  │  │  Depends: chroma        │◀─│  Volume: ./data/chroma      │ │ │
-│  │  └─────────────────────────┘  └─────────────────────────────┘ │ │
-│  │                                                                │ │
-│  │  Network: sandbox-network (bridge)                             │ │
-│  └───────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐ │
-│  │  Volumes:                                                      │ │
-│  │  • ./data/chroma → /data (ChromaDB persistence)               │ │
-│  │  • .env → environment variables                                │ │
-│  └───────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-         │
-         │ HTTPS (Port 443) - Nginx/Caddy Reverse Proxy
-         ▼
-    ┌─────────┐
-    │ Internet│
-    └─────────┘
-```
-
-#### 1. EC2 인스턴스 설정
-
-**권장 사양:**
-| 항목 | 권장 값 |
-|------|---------|
-| Instance Type | t3.medium (2 vCPU, 4GB RAM) |
-| OS | Ubuntu 22.04 LTS |
-| Storage | 30GB+ (SSD) |
-| Security Group | 22 (SSH), 80 (HTTP), 443 (HTTPS), 8000 (API) |
-
-**초기 설정:**
-```bash
-# 1. 시스템 업데이트
-sudo apt update && sudo apt upgrade -y
-
-# 2. Docker 설치
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker ubuntu
-newgrp docker
-
-# 3. Docker Compose 설치 (최신 버전)
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# 4. 버전 확인
-docker --version
-docker-compose --version
-```
-
-#### 2. 애플리케이션 배포
+### Docker Compose (AWS EC2)
 
 ```bash
-# 1. 저장소 클론
-git clone https://github.com/KernelAcademy-AICamp/2nd-pj-SandboxIA.git
-cd 2nd-pj-SandboxIA/server
+# 1. EC2에서 저장소 클론
+git clone https://github.com/azultasul/SandboxIA-ai-agent-rag.git
+cd SandboxIA-ai-agent-rag/server
 
 # 2. 환경 변수 설정
 cp .env.example .env
-nano .env  # 환경 변수 편집
+nano .env
 
-# 3. Docker 이미지 Pull & 실행
+# 3. 실행
 docker-compose pull
 docker-compose up -d
 
@@ -559,162 +439,44 @@ docker-compose ps
 docker-compose logs -f api
 ```
 
-#### 3. docker-compose.yml 서비스 구성
+**서비스 구성:**
 
-| 서비스 | 컨테이너명 | 이미지 | 포트 | 설명 |
-|--------|-----------|--------|------|------|
-| `api` | sandbox-api | ghcr.io/kernelacademy-aicamp/server-api:latest | 8000:8000 | FastAPI 서버 |
-| `chroma` | sandbox-chroma | chromadb/chroma:1.4.1 | 8001:8000 | Vector DB |
+| 서비스 | 이미지 | 포트 | 설명 |
+|--------|--------|------|------|
+| `api` | ghcr.io/...server-api:latest | 8000 | FastAPI 서버 |
+| `qdrant` | qdrant/qdrant:latest | 6333, 6334 | Vector DB (REST + gRPC) |
 
-**네트워크:**
-- `sandbox-network` (bridge): 컨테이너 간 내부 통신
-- API에서 ChromaDB 접근: `http://chroma:8000`
-
-#### 4. 환경 변수 (.env)
+**배포 환경 변수 (.env):**
 
 ```env
-# OpenAI
-OPENAI_API_KEY=sk-...
-
-# Supabase
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key
-
-# ChromaDB (Docker 내부 통신)
+VECTORDB_TYPE=qdrant
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
 CHROMA_MODE=http
-CHROMA_HOST=chroma
-CHROMA_PORT=8000
-
-# CORS (Vercel 도메인 추가)
-CORS_ORIGINS=https://your-domain.vercel.app,https://your-custom-domain.com
-
-# LLM
-LLM_MODEL=gpt-4o-mini
-LLM_EMBEDDING_MODEL=text-embedding-3-large
+CORS_ORIGINS=https://your-domain.vercel.app
 ```
 
-#### 5. HTTPS 설정 (Caddy)
+### CI/CD (GitHub Actions)
 
-```bash
-# Caddy 설치
-sudo apt install -y caddy
+`.github/workflows/deploy-server.yml`:
+- `main` 브랜치 `server/` 경로 변경 시 자동 배포
+- Docker 이미지 빌드 → GHCR push → EC2 SSH 배포
 
-# Caddyfile 설정
-sudo nano /etc/caddy/Caddyfile
-```
+### HTTPS (Caddy)
 
 ```
+# /etc/caddy/Caddyfile
 api.your-domain.com {
     reverse_proxy localhost:8000
 }
 ```
 
-```bash
-# Caddy 재시작 (자동 SSL 발급)
-sudo systemctl restart caddy
-```
-
-#### 6. 운영 명령어
+### 운영 명령어
 
 ```bash
-# 서비스 상태 확인
-docker-compose ps
-
-# 로그 확인
-docker-compose logs -f api      # API 로그
-docker-compose logs -f chroma   # ChromaDB 로그
-
-# 서비스 재시작
-docker-compose restart api
-
-# 이미지 업데이트 & 재배포
-docker-compose pull
-docker-compose up -d
-
-# 서비스 중지
-docker-compose down
-
-# 볼륨 포함 완전 삭제 (주의!)
-docker-compose down -v
-```
-
-#### 7. CI/CD (GitHub Actions)
-
-`.github/workflows/deploy.yml`:
-```yaml
-name: Deploy to EC2
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/**'
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/2nd-pj-SandboxIA/server
-            git pull origin main
-            docker-compose pull
-            docker-compose up -d
-```
-
-#### 8. 모니터링 & 헬스체크
-
-```bash
-# API 헬스체크
-curl http://localhost:8000/health
-
-# ChromaDB 헬스체크
-curl http://localhost:8001/api/v1/heartbeat
-
-# 컨테이너 리소스 사용량
-docker stats
-```
-
-#### 9. 트러블슈팅
-
-**컨테이너 시작 실패:**
-```bash
-# 로그 확인
-docker-compose logs api
-
-# 컨테이너 내부 접속
-docker exec -it sandbox-api /bin/bash
-```
-
-**ChromaDB 연결 오류:**
-```bash
-# ChromaDB 상태 확인
-docker-compose logs chroma
-
-# 네트워크 확인
-docker network inspect sandbox-network
-```
-
-**디스크 공간 부족:**
-```bash
-# Docker 정리
-docker system prune -a
-
-# 사용하지 않는 볼륨 삭제
-docker volume prune
-```
-
-#### 10. 백업
-
-```bash
-# ChromaDB 데이터 백업
-tar -czvf chroma_backup_$(date +%Y%m%d).tar.gz ./data/chroma
-
-# S3로 업로드 (선택)
-aws s3 cp chroma_backup_*.tar.gz s3://your-bucket/backups/
+docker-compose logs -f api        # 로그 확인
+docker-compose restart api        # 재시작
+docker-compose pull && docker-compose up -d  # 업데이트
+curl http://localhost:8000/health  # 헬스체크
+docker stats                       # 리소스 모니터링
 ```

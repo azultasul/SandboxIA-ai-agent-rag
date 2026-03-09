@@ -4,262 +4,127 @@
 
 ## Overview
 
-SandboxIA는 규제 샌드박스 신청 과정을 자동화하는 AI 기반 컨설팅 지원 시스템입니다. LangGraph 기반 멀티에이전트 아키텍처로 서비스 분석부터 신청서 작성까지 전 과정을 지원합니다.
+SandboxIA는 ICT 규제 샌드박스 신청 과정을 자동화하는 AI 기반 컨설팅 지원 시스템입니다. LangGraph 기반 멀티에이전트 아키텍처로 서비스 분석, 대상성 판단, 트랙 추천, 신청서 초안 작성까지 전 과정을 지원하며, RAG(Retrieval-Augmented Generation) 기반으로 규제 제도, 승인 사례, 도메인 법령 데이터를 활용합니다.
 
 ### 핵심 기능
 
 | 단계 | 기능 | 설명 |
 |------|------|------|
-| Step 1 | 서비스 구조화 | HWP 파일 파싱, 서비스 정보 추출 및 정규화 |
-| Step 2 | 대상성 판단 | 규제 샌드박스 적용 대상 여부 판단 |
+| Step 1 | 서비스 구조화 | HWP/PDF 파일 파싱, 서비스 정보 추출 및 정규화 |
+| Step 2 | 대상성 판단 | 규제 샌드박스 적용 대상 여부 AI 판단 |
 | Step 3 | 트랙 추천 | 신속확인/실증특례/임시허가 중 최적 트랙 추천 |
-| Step 4 | 신청서 초안 | 트랙별 신청서 양식 자동 작성 |
-| Step 5 | 전략 추천 | 유사 승인 사례 기반 전략 조언 (예정) |
-| Step 6 | 리스크 체크 | QA 체크리스트 및 리스크 식별 (예정) |
-
-### 화면별 주요 기능
-
-#### 대시보드 (`/dashboard`)
-
-프로젝트 목록을 관리하고 진행 상황을 한눈에 파악하는 메인 화면입니다.
-
-- **파이프라인**: 기업상담 / 신청서작성 / 결과대기 / 완료 상태별 프로젝트 수 표시, 클릭 시 필터링
-- **프로젝트 카드**: 회사명, 서비스명, 상태, 최근 수정일 표시. 클릭 시 상세 페이지 이동
-- **`+` 버튼**: 새 프로젝트 생성 모달 열기
-- **검색**: 회사명/서비스명으로 프로젝트 검색
-- **상태 필터**: 전체/기업상담/신청서작성/결과대기/완료 필터
-- **정렬**: 최신순/오래된순 정렬
-- **뷰 모드 전환**: 그리드/리스트 뷰 전환
-- **페이지네이션**: 페이지 이동
-
-| 요소 | 기능 |
-|------|------|
-| 파이프라인 | 상태별 프로젝트 수 표시, 클릭 시 필터링 |
-| 프로젝트 카드 | 프로젝트 정보 표시, 클릭 시 상세 이동 |
-| `+` 버튼 | 새 프로젝트 생성 모달 |
-| 검색 | 회사명/서비스명 검색 |
-| 상태 필터 | 상태별 필터링 |
-| 정렬 | 최신순/오래된순 |
-| 뷰 모드 | 그리드/리스트 전환 |
-
-#### 새 프로젝트 생성 모달
-
-- **기업명 입력** (필수): 프로젝트의 기업명
-- **서비스명 입력** (필수): 신청할 서비스명
-- **설명 입력**: 서비스 간략 설명
-- **`취소` 버튼**: 모달 닫기
-- **`생성하기` 버튼**: 프로젝트 생성 후 Step 1 페이지로 이동
-
-| 요소 | 기능 |
-|------|------|
-| 기업명 입력 | 프로젝트 기업명 (필수) |
-| 서비스명 입력 | 신청 서비스명 (필수) |
-| 설명 입력 | 서비스 간략 설명 |
-| `취소` 버튼 | 모달 닫기 |
-| `생성하기` 버튼 | 프로젝트 생성 → Step 1 이동 |
-
-#### Step 1. 기업 정보 입력 (`/projects/[id]/service`)
-
-서비스 기본 정보를 입력하고 신청서 파일을 업로드하는 화면입니다.
-
-- **서비스 정보 카드**
-  - 회사명 (필수): 기업명 입력
-  - 서비스명 (필수): 서비스명 입력
-  - 서비스 설명 (필수): 서비스 상세 설명 입력
-  - 추가 메모: 컨설턴트 참고용 메모
-- **신청 유형 카드**
-  - 라디오 버튼: 상담신청/신속확인/임시허가/실증특례 선택
-  - 저장된 파일: 기존 업로드 파일 목록, 클릭 시 다운로드
-  - 파일 업로드: 트랙별 필수 신청서 파일 업로드 (HWP/PDF)
-- **`AI 분석 및 다음 단계` 버튼**: 서비스 분석 + 시장출시 진단 실행 후 Step 2 이동
-- **`재분석` 버튼**: 이미 분석 완료 시, 재분석 확인 모달 표시
-- **`다음 단계` 버튼**: 분석 없이 Step 2로 이동 (이미 분석된 경우)
-
-| 요소 | 기능 |
-|------|------|
-| 서비스 정보 카드 | 회사명, 서비스명, 설명, 메모 입력 |
-| 신청 유형 선택 | 상담신청/신속확인/임시허가/실증특례 |
-| 파일 업로드 | 신청서 파일 업로드 (HWP/PDF) |
-| `AI 분석 및 다음 단계` 버튼 | 서비스 분석 → Step 2 이동 |
-| `재분석` 버튼 | 재분석 확인 모달 |
-| `다음 단계` 버튼 | Step 2 이동 (분석 완료 시) |
-
-#### Step 2. 시장출시 진단 (`/projects/[id]/eligibility`)
-
-AI가 규제 현황을 분석하여 규제 샌드박스 신청 필요 여부를 판단하는 화면입니다.
-
-- **AI 분석 카드**
-  - 요약: AI 분석 결과 요약 (규제 샌드박스 필요/바로 출시 가능)
-  - 신뢰도: AI 판단 신뢰도 (%)
-- **판단 근거 카드**
-  - 규제 기준 배지: 규제 제도 관련 판단 근거
-  - 법령 기준 배지: 법령/인허가 관련 판단 근거
-  - 사례 기준 배지: 유사 승인/반려 사례 기반 판단 근거
-- **리스크 카드**: 바로 출시 시 예상 리스크 목록
-- **최종 결정 카드**
-  - `바로 시장 출시` 선택: 대시보드로 이동
-  - `규제 샌드박스 신청` 선택: Step 3으로 이동
-- **참고 패널 (우측)**
-  - 유사 승인 사례 탭: RAG로 검색된 유사 승인 사례 목록
-  - 관련 법령 탭: RAG로 검색된 관련 법령 조항 목록
-- **`이전` 버튼**: Step 1로 이동
-- **`AI 분석 및 다음 단계` 버튼**: 시장출시 진단 실행 후 결과 표시
-- **`재분석` 버튼**: 재분석 확인 모달 표시
-- **`다음 단계` / `완료` 버튼**: 트랙 분석 후 Step 3 이동 또는 대시보드 이동
-
-| 요소 | 기능 |
-|------|------|
-| AI 분석 카드 | 진단 결과 요약 + 신뢰도 표시 |
-| 판단 근거 카드 | 규제/법령/사례 기준별 근거 배지 |
-| 리스크 카드 | 바로 출시 시 예상 리스크 |
-| 최종 결정 카드 | 바로 출시 / 샌드박스 신청 선택 |
-| 참고 패널 | 유사 사례 + 관련 법령 탭 |
-| `이전` 버튼 | Step 1 이동 |
-| `AI 분석` / `재분석` 버튼 | 진단 실행 |
-| `다음 단계` / `완료` 버튼 | Step 3 이동 또는 대시보드 이동 |
-
-#### Step 3. 트랙 선택 (`/projects/[id]/track`)
-
-AI가 분석한 결과를 바탕으로 최적의 규제 샌드박스 트랙을 선택하는 화면입니다.
-
-- **AI 분석 카드**
-  - 요약: 트랙 추천 결과 요약
-  - 신뢰도: AI 판단 신뢰도 (%)
-- **트랙 카드** (3개)
-  - 순위 배지: AI 추천 순위 (1, 2, 3위)
-  - 트랙명 + 정보 아이콘: 툴팁으로 상세 정보 (소요 기간, 주요 요건)
-  - 상태 배지: AI 추천 / 조건부 가능 / 비추천
-  - 추천 이유 목록: 긍정(✓)/부정(✗)/중립(!) 아이콘과 근거
-  - 카드 클릭: 해당 트랙 선택 (테두리 강조)
-- **참고 패널 (우측)**
-  - 유사 승인 사례 탭: 유사 사례 목록 (회사명, 트랙, 유사도)
-  - 관련 법령 탭: 도메인 제약 법령 목록
-- **`이전` 버튼**: Step 2로 이동
-- **`재분석` 버튼**: 재분석 확인 모달 표시
-- **`다음 단계` 버튼**: 신청서 초안 생성 후 Step 4 이동
-
-| 요소 | 기능 |
-|------|------|
-| AI 분석 카드 | 트랙 추천 요약 + 신뢰도 |
-| 트랙 카드 (3개) | 순위 배지, 상태 배지, 추천 이유, 클릭 시 선택 |
-| 참고 패널 | 유사 사례 + 관련 법령 탭 |
-| `이전` 버튼 | Step 2 이동 |
-| `재분석` 버튼 | 재분석 확인 모달 |
-| `다음 단계` 버튼 | 초안 생성 → Step 4 이동 |
-
-#### Step 4. 신청서 작성 (`/projects/[id]/draft`)
-
-AI가 생성한 신청서 초안을 검토하고 수정하여 최종 문서를 완성하는 화면입니다.
-
-- **AI 분석 카드**: 초안 생성 완료 / 초안 필요 상태 안내
-- **폼 섹션**
-  - 아코디언 카드: 신청서 섹션별 입력 폼 (접기/펼치기)
-  - 리치 텍스트 에디터: 서술형 필드 편집 (Tiptap 기반)
-  - 입력 필드: 텍스트/날짜/선택 등 필드 타입별 입력
-- **참고 패널 (우측)**
-  - 유사 승인 사례 탭: 참고할 수 있는 유사 사례
-  - 관련 법령 탭: 신청서 작성 시 참고할 법령
-- **`이전` 버튼**: Step 3으로 이동
-- **`AI 초안 생성` 버튼**: 초안 없을 때 AI 초안 생성 실행
-- **`AI 재생성` 버튼**: 기존 초안을 새로 생성 (확인 모달)
-- **`다운로드` 버튼**: 다운로드 모달 - DOCX/PDF 형식 선택
-- **`작성 완료` 버튼**: 신청서 저장 후 결과대기 상태로 변경
-- **`프로젝트 완료` 버튼**: 결과 확인 후 프로젝트 최종 종료
-
-| 요소 | 기능 |
-|------|------|
-| AI 분석 카드 | 초안 생성 상태 안내 |
-| 폼 섹션 (아코디언) | 섹션별 입력 폼 (접기/펼치기) |
-| 리치 텍스트 에디터 | 서술형 필드 편집 (Tiptap) |
-| 참고 패널 | 유사 사례 + 관련 법령 탭 |
-| `이전` 버튼 | Step 3 이동 |
-| `AI 초안 생성` / `AI 재생성` 버튼 | 초안 생성 |
-| `다운로드` 버튼 | DOCX/PDF 다운로드 모달 |
-| `작성 완료` 버튼 | 신청서 저장 → 결과대기 상태 |
-| `프로젝트 완료` 버튼 | 프로젝트 최종 종료 |
-
-#### 공통 UI 요소
-
-- **AI 로딩 오버레이**: 에이전트 실행 중 진행 상태 표시 (노드별 체크리스트)
-- **참고 패널 토글**: 우측 참고 패널 접기/펼치기
-- **확인 모달**: 재분석, 완료 등 중요 액션 전 사용자 확인
-- **에러 모달**: API 오류 발생 시 에러 메시지 표시
-- **스텝 네비게이션**: 상단 단계 표시바 (서비스 → 시장출시 → 트랙 → 신청서)
-
-| 요소 | 기능 |
-|------|------|
-| AI 로딩 오버레이 | 에이전트 진행 상태 (노드별 체크리스트) |
-| 참고 패널 토글 | 우측 패널 접기/펼치기 |
-| 확인 모달 | 중요 액션 전 사용자 확인 |
-| 에러 모달 | API 오류 메시지 표시 |
-| 스텝 네비게이션 | 상단 단계 표시바 |
-
-## Tech Stack
-
-| 영역 | 기술 |
-|------|------|
-| Frontend | Next.js 16, React 19, TypeScript 5, TailwindCSS 4, TanStack Query 5, Zustand |
-| Backend | FastAPI, LangGraph, LangChain, Pydantic |
-| AI/ML | OpenAI GPT-4o, ChromaDB (Vector DB), RAGAS (RAG 평가) |
-| Database | Supabase (PostgreSQL + Storage + Auth) |
-| Infra | Vercel (Frontend), Docker (Backend) |
+| Step 4 | 신청서 초안 | 트랙별 신청서 양식 AI 자동 작성 및 편집 |
+| 채팅 | AI 상담 | 프로젝트 분석 결과, 규제/법령/사례 실시간 Q&A |
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Client (Next.js 16)                         │
-│  ┌─────────────────────────────────────────────────────────────────┐│
-│  │ React 19 │ TanStack Query │ Zustand │ React Hook Form │ Zod    ││
-│  └─────────────────────────────────────────────────────────────────┘│
+│  React 19 │ TanStack Query 5 │ Zustand │ TailwindCSS 4             │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │ REST API + SSE (Progress Streaming)
 ┌────────────────────────────────▼────────────────────────────────────┐
-│                      Server (FastAPI + LangGraph)                   │
+│                      Server (FastAPI + LangGraph)                    │
 │  ┌────────────────────────────────────────────────────────────────┐ │
 │  │                      LangGraph Agents                          │ │
 │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐           │ │
 │  │  │ 1.Structurer │ │2.Eligibility │ │3.Recommender │           │ │
 │  │  └──────────────┘ └──────────────┘ └──────────────┘           │ │
-│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐           │ │
-│  │  │  4.Drafter   │ │ 5.Advisor    │ │ 6.Checker    │           │ │
-│  │  └──────────────┘ └──────────────┘ └──────────────┘           │ │
+│  │  ┌──────────────┐ ┌──────────────────────────────────┐        │ │
+│  │  │  4.Drafter   │ │ Chat Supervisor                  │        │ │
+│  │  │              │ │  ├─ Results Analyst (프로젝트 결과)│        │ │
+│  │  │              │ │  └─ RAG Expert (규제/사례/법령)   │        │ │
+│  │  └──────────────┘ └──────────────────────────────────┘        │ │
 │  └───────────────────────────┬────────────────────────────────────┘ │
-│                              │                                       │
 │  ┌───────────────────────────▼────────────────────────────────────┐ │
 │  │                    Shared RAG Tools                             │ │
-│  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │ │
-│  │  │ R1: 규제제도     │ │ R2: 승인사례    │ │ R3: 도메인법령   │   │ │
-│  │  │ (트랙/절차/요건) │ │ (사례/조건)     │ │ (법령/인허가)   │   │ │
-│  │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │ │
+│  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐  │ │
+│  │  │ R1: 규제제도     │ │ R2: 승인사례    │ │ R3: 도메인법령   │  │ │
+│  │  └─────────────────┘ └─────────────────┘ └─────────────────┘  │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
                                  │
 ┌────────────────────────────────▼────────────────────────────────────┐
 │                           External Services                          │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                 │
-│  │   Supabase   │ │   ChromaDB   │ │  OpenAI API  │                 │
-│  │  (DB/Auth)   │ │  (VectorDB)  │ │  (LLM/Embed) │                 │
+│  │   Supabase   │ │ Qdrant /     │ │  OpenAI API  │                 │
+│  │  (DB/Auth/   │ │ ChromaDB     │ │  (LLM/Embed) │                 │
+│  │   Storage)   │ │ (Vector DB)  │ │              │                 │
 │  └──────────────┘ └──────────────┘ └──────────────┘                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+## Tech Stack
+
+| 영역 | 기술 |
+|------|------|
+| Frontend | Next.js 16, React 19, TypeScript 5, TailwindCSS 4, TanStack Query 5, Zustand |
+| Backend | FastAPI, LangGraph 1.0, LangChain, Pydantic |
+| AI/ML | OpenAI GPT-4o / GPT-4o-mini, Hybrid Search (Dense + SPLADE) |
+| Vector DB | Qdrant (Production), ChromaDB (Development) |
+| Database | Supabase (PostgreSQL + Storage + Auth) |
+| Infra | Vercel (Frontend), AWS EC2 + Docker Compose (Backend) |
+
+## AI Agent Architecture
+
+### LangGraph 멀티에이전트
+
+4개의 파이프라인 에이전트와 채팅 에이전트 그룹(Supervisor + 2 서브에이전트)으로 구성됩니다.
+
+**파이프라인 에이전트**
+
+| Agent | 역할 | 사용 RAG |
+|-------|------|----------|
+| **Service Structurer** | HWP 파싱 → 서비스 정보 정규화 (Canonical Structure) | R3 |
+| **Eligibility Evaluator** | 규제 샌드박스 대상 여부 판단 | R1, R2, R3 |
+| **Track Recommender** | 신속확인/실증특례/임시허가 트랙 추천 | R1, R2 |
+| **Application Drafter** | 트랙별 신청서 초안 자동 생성 | R1, R2, R3 |
+
+**채팅 에이전트**
+
+| Agent | 역할 | 모델 |
+|-------|------|------|
+| **Chat Supervisor** | 사용자 질문 의도 분류 및 서브 에이전트 라우팅 | gpt-4o-mini |
+| ↳ **Results Analyst** | 프로젝트별 분석 결과(대상성, 트랙 추천, 점수 등) 질의응답 | gpt-4o-mini |
+| ↳ **RAG Expert** | 규제 제도, 승인 사례, 법령 관련 질의응답 (R1/R2/R3 병렬 검색) | gpt-4o |
+
+### RAG System
+
+3개의 도메인별 RAG로 컨텍스트 기반 응답을 생성합니다.
+
+| RAG | 데이터 소스 | 주요 활용 |
+|-----|-------------|----------|
+| R1: 규제제도 & 절차 | 트랙별 정의, 절차, 요건, 심사 기준 | 대상성 판단, 트랙 추천, 신청서 작성 |
+| R2: 승인사례 | 실증특례/임시허가 승인 사례, 조건, 실증 범위 | 유사 사례 검색, 근거 제공 |
+| R3: 도메인별 법령 | 의료법, 전자금융거래법, 개인정보보호법 등 | 규제 쟁점 분석, 법적 근거 |
+
+### RAG 평가
+
+RAGAS 기반 평가 시스템으로 Retrieval/Generation 품질을 측정합니다.
+
+| 카테고리 | 지표 | 설명 |
+|----------|------|------|
+| Retrieval | Must-Have Recall@K | 필수 조항 검색률 |
+| | Recall@K | 전체 정답 검색률 |
+| | MRR | 첫 번째 정답의 역순위 |
+| Generation | Faithfulness | 컨텍스트 기반 여부 |
+| | Answer Relevancy | 질문-응답 적합도 |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 20+
-- Python 3.12+
-- pnpm
-- uv (Python package manager)
-- Docker (ChromaDB용, 선택)
+- Node.js 20+, pnpm 9+
+- Python 3.12+, uv
+- Docker (Vector DB용)
 
 ### Quick Start
 
 ```bash
 # 1. 저장소 클론
-git clone https://github.com/KernelAcademy-AICamp/2nd-pj-SandboxIA.git
-cd 2nd-pj-SandboxIA
+git clone https://github.com/azultasul/SandboxIA-ai-agent-rag.git
+cd SandboxIA-ai-agent-rag
 
 # 2. 환경 변수 설정
 cp server/.env.example server/.env
@@ -283,8 +148,8 @@ pnpm run dev
 - API Docs: http://localhost:8000/docs
 
 자세한 설정은 각 디렉토리의 README를 참고하세요:
-- [client/README.md](./client/README.md) - 프론트엔드 설정
-- [server/README.md](./server/README.md) - 백엔드 설정
+- [client/README.md](./client/README.md) - 프론트엔드 설정 및 배포
+- [server/README.md](./server/README.md) - 백엔드 설정 및 배포
 
 ## Repository Structure
 
@@ -293,11 +158,12 @@ pnpm run dev
 ├── client/                    # Next.js 프론트엔드
 │   ├── src/
 │   │   ├── app/              # App Router 페이지
-│   │   ├── components/       # React 컴포넌트
-│   │   ├── hooks/            # TanStack Query 훅
+│   │   ├── components/       # React 컴포넌트 (ui/, features/, layouts/)
+│   │   ├── hooks/            # TanStack Query 훅 (queries/, mutations/, streaming/)
 │   │   ├── lib/              # API 클라이언트, 유틸리티
 │   │   ├── stores/           # Zustand 스토어
-│   │   └── types/            # TypeScript 타입
+│   │   ├── types/            # TypeScript 타입
+│   │   └── data/             # 양식 스키마 (JSON)
 │   └── README.md
 │
 ├── server/                    # FastAPI 백엔드
@@ -306,39 +172,46 @@ pnpm run dev
 │   │   ├── api/              # API 라우트 & 스키마
 │   │   ├── services/         # 비즈니스 로직
 │   │   ├── tools/shared/     # 공용 RAG Tools
-│   │   ├── core/             # 설정, LLM
-│   │   └── db/               # Vector DB
+│   │   ├── core/             # 설정, LLM, 상수
+│   │   └── db/               # Vector DB 클라이언트
 │   ├── eval/                 # RAG 평가 시스템
+│   ├── scripts/              # 데이터 수집 스크립트
 │   └── README.md
 │
 ├── doc/                       # 프로젝트 문서
-├── CLAUDE.md                  # Claude Code 지침
+│   ├── development/          # 개발 명세 (에이전트, DB, 코딩 컨벤션)
+│   ├── planning/             # 기획 문서 (PRD, 양식 정의)
+│   └── evaluation/           # RAG 평가 결과
+│
+├── .github/workflows/        # CI/CD (GitHub Actions)
+├── .coderabbit.yaml          # 자동 코드 리뷰 설정
+├── CLAUDE.md                 # Claude Code 지침
 └── README.md
 ```
 
-## RAG System
+## Deployment
 
-3개의 도메인별 RAG 시스템으로 컨텍스트 기반 응답 생성:
+### 배포 아키텍처
 
-| RAG | 데이터 소스 | 주요 활용 |
-|-----|-------------|----------|
-| R1 | 규제제도 정의, 트랙별 절차/요건/심사기준 | 대상성 판단, 트랙 추천, 신청서 작성 |
-| R2 | 승인/반려 사례, 조건, 실증 범위 | 유사 사례 검색, 전략 조언 |
-| R3 | 도메인별 법령 (의료법, 전자금융거래법 등) | 규제 쟁점 분석, 법적 근거 |
-
-### RAG 평가
-
-RAGAS 기반 평가 시스템으로 RAG 품질 측정:
-
-```bash
-cd server
-
-# Retrieval 평가
-uv run python eval/r3/run_evaluation.py --top_k 5
-
-# LLM-as-Judge 평가
-uv run python eval/r3/run_llm_evaluation.py --limit 5
 ```
+┌─────────────────┐           ┌─────────────────────────────────┐
+│     Vercel      │           │         AWS EC2 (Ubuntu)        │
+│   (Frontend)    │           │          (Backend)              │
+│                 │           │                                 │
+│  Next.js 16     │◀─────────▶│  ┌─────────────────────────┐   │
+│  Edge Network   │   HTTPS   │  │   Docker Compose        │   │
+│                 │           │  │  ┌─────────┐ ┌────────┐ │   │
+│                 │           │  │  │ FastAPI │ │ Qdrant │ │   │
+│                 │           │  │  │  :8000  │ │ :6333  │ │   │
+└─────────────────┘           │  │  └─────────┘ └────────┘ │   │
+                              │  └─────────────────────────┘   │
+                              └─────────────────────────────────┘
+```
+
+- **Frontend**: Vercel (GitHub 연동 자동 배포, Preview Deployments)
+- **Backend**: AWS EC2 + Docker Compose (GitHub Actions CI/CD)
+- **Database**: Supabase (PostgreSQL + Auth + Storage)
+- **Vector DB**: Qdrant (Docker 컨테이너)
 
 ## Branch Strategy
 
@@ -351,33 +224,20 @@ uv run python eval/r3/run_llm_evaluation.py --limit 5
 | `feature/uiux` | UI/UX 개발 |
 | `eval/rag-*` | RAG 평가 실험 |
 
-### PR 워크플로우
-
-```bash
-# 1. feature 브랜치에서 작업
-git checkout -b feature/my-feature
-
-# 2. 작업 완료 후 push
-git add .
-git commit -m "feat: 새 기능 추가"
-git push origin feature/my-feature
-
-# 3. GitHub에서 PR 생성 (base: dev)
-```
-
 ## Development Tools
 
 ### CodeRabbit
 
 PR 생성 시 자동 코드 리뷰. 설정: `.coderabbit.yaml`
 
-### Claude Code (Optional)
+### Claude Code
 
 AI 기반 개발 지원. 프로젝트 지침: `CLAUDE.md`
 
-**권장 MCP 서버:**
-- [context7](https://github.com/upstash/context7) - 라이브러리 문서 검색
+**MCP 서버:**
+- [context7](https://github.com/upstash/context7) - 라이브러리 공식 문서 검색
 - [supabase-mcp](https://github.com/supabase-community/supabase-mcp) - DB 스키마 관리
+- [serena](https://github.com/brokegen/serena) - 시맨틱 코드 탐색
 
 ## Contributing
 
@@ -386,87 +246,6 @@ AI 기반 개발 지원. 프로젝트 지침: `CLAUDE.md`
 3. 작업 완료 후 PR 생성 (base: `dev`)
 4. CodeRabbit 리뷰 확인 및 수정
 5. 리뷰 승인 후 Merge
-
-## Deployment
-
-### 배포 아키텍처
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Production Environment                        │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────────┐           ┌─────────────────────────────────┐ │
-│  │     Vercel      │           │         AWS EC2 (Ubuntu)        │ │
-│  │   (Frontend)    │           │          (Backend)              │ │
-│  │                 │           │                                 │ │
-│  │  Next.js 16     │◀─────────▶│  ┌─────────────────────────┐   │ │
-│  │  Static + SSR   │   HTTPS   │  │   Docker Compose        │   │ │
-│  │                 │           │  │  ┌─────────┐ ┌────────┐ │   │ │
-│  │  Edge Network   │           │  │  │ FastAPI │ │ChromaDB│ │   │ │
-│  │  (CDN)          │           │  │  │  :8000  │ │ :8001  │ │   │ │
-│  └─────────────────┘           │  │  └─────────┘ └────────┘ │   │ │
-│                                │  └─────────────────────────┘   │ │
-│                                └─────────────────────────────────┘ │
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │                    External Services                         │   │
-│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐    │   │
-│  │  │  Supabase   │ │  OpenAI API │ │  GitHub Container   │    │   │
-│  │  │  (DB/Auth)  │ │  (LLM)      │ │  Registry (GHCR)    │    │   │
-│  │  └─────────────┘ └─────────────┘ └─────────────────────┘    │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Frontend (Vercel)
-
-```bash
-# Vercel CLI로 배포
-vercel --prod
-
-# 또는 GitHub 연동으로 자동 배포 (main 브랜치 push 시)
-```
-
-**환경 변수 (Vercel Dashboard):**
-```
-NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.com
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### Backend (AWS EC2 + Docker Compose)
-
-```bash
-# 1. EC2 인스턴스 접속
-ssh -i your-key.pem ubuntu@your-ec2-ip
-
-# 2. Docker 설치 (최초 1회)
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker ubuntu
-
-# 3. 저장소 클론 & 환경 설정
-git clone https://github.com/your-repo/SandboxIA.git
-cd SandboxIA/server
-cp .env.example .env
-# .env 파일 편집
-
-# 4. Docker Compose로 실행
-docker-compose up -d
-
-# 5. 로그 확인
-docker-compose logs -f api
-```
-
-**docker-compose.yml 서비스:**
-| 서비스 | 이미지 | 포트 | 설명 |
-|--------|--------|------|------|
-| `api` | ghcr.io/kernelacademy-aicamp/server-api:latest | 8000 | FastAPI 서버 |
-| `chroma` | chromadb/chroma:1.4.1 | 8001 | Vector DB |
-
-자세한 배포 가이드:
-- [client/README.md](./client/README.md#deployment) - Vercel 배포
-- [server/README.md](./server/README.md#deployment) - EC2 + Docker 배포
 
 ## Team
 
