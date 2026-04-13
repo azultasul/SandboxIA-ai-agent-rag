@@ -4,17 +4,17 @@
 
 ## Tech Stack
 
-| 영역 | 기술 |
-|------|------|
-| Framework | Next.js 16 (App Router), React 19 |
-| Language | TypeScript 5 |
-| Styling | TailwindCSS 4, Radix UI |
-| Server State | TanStack Query 5 |
-| Client State | Zustand 5 |
-| Form | React Hook Form + Zod |
-| Editor | Tiptap 3 (Rich Text) |
-| Auth | Supabase Auth (SSR) |
-| Icons | Lucide React |
+| 영역         | 기술                              |
+| ------------ | --------------------------------- |
+| Framework    | Next.js 16 (App Router), React 19 |
+| Language     | TypeScript 5                      |
+| Styling      | TailwindCSS 4, Radix UI           |
+| Server State | TanStack Query 5                  |
+| Client State | Zustand 5                         |
+| Form         | React Hook Form + Zod             |
+| Editor       | Tiptap 3 (Rich Text)              |
+| Auth         | Supabase Auth (SSR)               |
+| Icons        | Lucide React                      |
 
 ## Getting Started
 
@@ -204,13 +204,13 @@ AI가 생성한 초안을 검토하고 수정하여 최종 문서를 완성합�
 ```
 ┌─────────────────────────────────────────────────────┐
 │  Server State (TanStack Query)                      │
-│  • 프로젝트, 대상성, 트랙, 초안, 채팅 이력           │
+│  • 프로젝트, 대상성, 트랙, 초안, 채팅 이력                  │
 ├─────────────────────────────────────────────────────┤
 │  Client State (Zustand)                             │
-│  • 인증, UI 상태 (뷰 모드, 로더), 위자드 스텝        │
+│  • 인증, UI 상태 (뷰 모드, 로더), 위자드 스텝               │
 ├─────────────────────────────────────────────────────┤
 │  Form State (React Hook Form + Zod)                 │
-│  • 필드 값, 유효성 검증, dirty state                 │
+│  • 필드 값, 유효성 검증, dirty state                    │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -233,15 +233,14 @@ rewrites() {
 
 ```typescript
 // hooks/streaming/use-agent-progress.ts
-const eventSource = new EventSource(
-  `${API_BASE}/agents/progress/subscribe/${projectId}`
-);
+const eventSource = new EventSource(`${API_BASE}/agents/progress/subscribe/${projectId}`)
 // Events: agent_start, node_start, node_end, agent_end, error
 ```
 
 ### Authentication
 
 Supabase Auth 기반 인증:
+
 1. `AuthProvider`가 앱 초기화 시 세션 복원
 2. `auth-store`에서 토큰 관리
 3. API 요청 시 `Authorization: Bearer {token}` 헤더 추가
@@ -268,12 +267,12 @@ vercel --prod
 
 **빌드 설정:**
 
-| 설정 | 값 |
-|------|-----|
-| Framework Preset | Next.js |
-| Root Directory | `client` |
-| Build Command | `pnpm run build` |
-| Install Command | `pnpm install` |
+| 설정             | 값               |
+| ---------------- | ---------------- |
+| Framework Preset | Next.js          |
+| Root Directory   | `client`         |
+| Build Command    | `pnpm run build` |
+| Install Command  | `pnpm install`   |
 
 **환경 변수 (Vercel Dashboard):**
 

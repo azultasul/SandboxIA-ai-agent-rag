@@ -4,18 +4,18 @@
 
 ## Tech Stack
 
-| 영역 | 기술 |
-|------|------|
-| Framework | FastAPI 0.128, Uvicorn |
-| AI Agent | LangGraph 1.0, LangChain 1.2 |
-| LLM | OpenAI GPT-4o, GPT-4o-mini |
-| Vector DB | Qdrant (Production), ChromaDB (Development) |
-| Search | Hybrid Search (Dense + SPLADE Sparse) |
-| Database | Supabase (PostgreSQL) |
-| Storage | Supabase Storage |
-| Auth | Supabase Auth (JWT ES256) |
-| Document | docxtpl (DOCX), LibreOffice (PDF) |
-| Package | uv (Python 3.12) |
+| 영역      | 기술                                  |
+| --------- | ------------------------------------- |
+| Framework | FastAPI 0.128, Uvicorn                |
+| AI Agent  | LangGraph 1.0, LangChain 1.2          |
+| LLM       | OpenAI GPT-4o, GPT-4o-mini            |
+| Vector DB | Qdrant, ~~ChromaDB~~                  |
+| Search    | Hybrid Search (Dense + SPLADE Sparse) |
+| Database  | Supabase (PostgreSQL)                 |
+| Storage   | Supabase Storage                      |
+| Auth      | Supabase Auth (JWT ES256)             |
+| Document  | docxtpl (DOCX), LibreOffice (PDF)     |
+| Package   | uv (Python 3.12)                      |
 
 ## Getting Started
 
@@ -44,20 +44,27 @@ OPENAI_API_KEY=sk-...
 # LLM 설정
 LLM_MODEL=gpt-4o-mini
 LLM_EMBEDDING_MODEL=text-embedding-3-large
+LLM_TEMPERATURE=0.1
 
 # Supabase
 SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_KEY=your-service-role-key
 
-# Vector DB (개발: persistent, 배포: qdrant)
-VECTORDB_TYPE=chroma
-CHROMA_MODE=persistent
-CHROMA_PERSIST_DIR=./data/chroma
+# Vector DB - QDRANT
+QDRANT_PORT=6333
+QDRANT_PERSIST_DIR=./data/qdrant
+
+# QDRANT 배포 실행시 로컬용
+QDRANT_MODE=server
+VECTORDB_TYPE=qdrant
+QDRANT_HOST=localhost
 
 # CORS
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
-# Google Drive (RAG 데이터)
+# Google Drive (RAG 데이터 다운로드용, 폴더 경로)
+GOOGLE_DRIVE_URL=https://drive.google.com/drive/folders/
 R1_DATA_ID=your-folder-id
 R2_DATA_ID=your-folder-id
 
@@ -69,6 +76,9 @@ DRAFT_TEMPLATE_DEMONSTRATION_ID=your-file-id
 # 법령 API (law.go.kr)
 LAW_API_BASE_URL=https://www.law.go.kr
 LAW_API_OC=your-api-key
+
+# LangSmith 설정 (Token/Cost 추적용, 평가 스크립트 --trace 옵션 사용 시 활성화)
+LANGCHAIN_API_KEY=lsv2_pt_...
 ```
 
 ### Vector DB Setup
@@ -190,20 +200,20 @@ server/
 
 **파이프라인 에이전트**
 
-| Agent | Workflow | RAG |
-|-------|----------|-----|
-| **Service Structurer** | `parse_hwp` → `build_structure` | R3 |
-| **Eligibility Evaluator** | `screen` → `search_all_rag` → `compose_decision` → `generate_evidence` | R1, R2, R3 |
-| **Track Recommender** | `retrieve_cases` → `score_all_tracks` → `retrieve_definitions` → `generate_recommendation` | R1, R2 |
-| **Application Drafter** | `load_form_schema` → `retrieve_context` → `generate_draft` | R1, R2, R3 |
+| Agent                     | Workflow                                                                                   | RAG        |
+| ------------------------- | ------------------------------------------------------------------------------------------ | ---------- |
+| **Service Structurer**    | `parse_hwp` → `build_structure`                                                            | R3         |
+| **Eligibility Evaluator** | `screen` → `search_all_rag` → `compose_decision` → `generate_evidence`                     | R1, R2, R3 |
+| **Track Recommender**     | `retrieve_cases` → `score_all_tracks` → `retrieve_definitions` → `generate_recommendation` | R1, R2     |
+| **Application Drafter**   | `load_form_schema` → `retrieve_context` → `generate_draft`                                 | R1, R2, R3 |
 
 **채팅 에이전트**
 
-| Agent | Workflow | 모델 |
-|-------|----------|------|
-| **Chat Supervisor** | `supervisor` → 조건부 라우팅 | gpt-4o-mini |
-| ↳ **Results Analyst** | Supabase에서 프로젝트 데이터 조회 → LLM 응답 생성 | gpt-4o-mini |
-| ↳ **RAG Expert** | R1/R2/R3 병렬 검색 (ThreadPoolExecutor) → LLM 응답 생성 | gpt-4o |
+| Agent                | Workflow                                                | 모델        |
+| -------------------- | ------------------------------------------------------- | ----------- |
+| **Chat Supervisor**  | `supervisor` → 조건부 라우팅                            | gpt-4o-mini |
+| ↳**Results Analyst** | Supabase에서 프로젝트 데이터 조회 → LLM 응답 생성       | gpt-4o-mini |
+| ↳**RAG Expert**      | R1/R2/R3 병렬 검색 (ThreadPoolExecutor) → LLM 응답 생성 | gpt-4o      |
 
 ### Chat Supervisor 라우팅
 
@@ -222,12 +232,14 @@ Chat Supervisor는 사용자 질문의 의도를 분류하여 적절한 서브 �
 ```
 
 **Results Analyst** 데이터 조회 함수:
+
 - `fetch_project_summary()` — 서비스명, 트랙, 현재 단계
 - `fetch_eligibility_summary()` — 대상성 판정 + 확신도 + 판단 근거
 - `fetch_track_summary()` — 트랙별 추천 점수 및 사유
 - `fetch_all_project_data()` — 위 데이터 통합 조회
 
 **RAG Expert** 검색 도구:
+
 - R1 `search_regulation()` — 규제 제도 & 절차
 - R2 `search_case()` — 승인 사례
 - R3 `search_domain_law()` — 도메인별 법령
@@ -252,47 +264,47 @@ Document Generation (DOCX/PDF)
 
 ### Agent Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/agents/structure` | Step 1: 서비스 구조화 |
-| POST | `/api/v1/agents/eligibility` | Step 2: 대상성 판단 |
-| PATCH | `/api/v1/agents/eligibility/{id}/final-decision` | 최종 결정 업데이트 |
-| POST | `/api/v1/agents/track` | Step 3: 트랙 추천 |
-| GET | `/api/v1/agents/track/{id}` | 캐싱된 트랙 결과 조회 |
-| POST | `/api/v1/agents/draft` | Step 4: 초안 생성 |
-| PATCH | `/api/v1/agents/draft/{id}` | 초안 카드 부분 업데이트 |
+| Method | Endpoint                                         | Description             |
+| ------ | ------------------------------------------------ | ----------------------- |
+| POST   | `/api/v1/agents/structure`                       | Step 1: 서비스 구조화   |
+| POST   | `/api/v1/agents/eligibility`                     | Step 2: 대상성 판단     |
+| PATCH  | `/api/v1/agents/eligibility/{id}/final-decision` | 최종 결정 업데이트      |
+| POST   | `/api/v1/agents/track`                           | Step 3: 트랙 추천       |
+| GET    | `/api/v1/agents/track/{id}`                      | 캐싱된 트랙 결과 조회   |
+| POST   | `/api/v1/agents/draft`                           | Step 4: 초안 생성       |
+| PATCH  | `/api/v1/agents/draft/{id}`                      | 초안 카드 부분 업데이트 |
 
 ### Chat Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/chat` | 메시지 전송 → 에이전트 응답 |
-| GET | `/api/v1/chat/{project_id}/history` | 대화 이력 조회 |
-| DELETE | `/api/v1/chat/{project_id}/history` | 대화 이력 초기화 |
+| Method | Endpoint                            | Description                 |
+| ------ | ----------------------------------- | --------------------------- |
+| POST   | `/api/v1/chat`                      | 메시지 전송 → 에이전트 응답 |
+| GET    | `/api/v1/chat/{project_id}/history` | 대화 이력 조회              |
+| DELETE | `/api/v1/chat/{project_id}/history` | 대화 이력 초기화            |
 
 ### Progress Streaming (SSE)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/agents/progress/nodes/{agent_type}` | 에이전트 노드 정의 |
-| GET | `/api/v1/agents/progress/nodes` | 전체 에이전트 노드 |
-| GET | `/api/v1/agents/progress/subscribe/{project_id}` | SSE 구독 |
+| Method | Endpoint                                         | Description        |
+| ------ | ------------------------------------------------ | ------------------ |
+| GET    | `/api/v1/agents/progress/nodes/{agent_type}`     | 에이전트 노드 정의 |
+| GET    | `/api/v1/agents/progress/nodes`                  | 전체 에이전트 노드 |
+| GET    | `/api/v1/agents/progress/subscribe/{project_id}` | SSE 구독           |
 
 **SSE 이벤트:** `agent_start`, `node_start`, `node_end`, `agent_end`, `error`
 
 ### Document & File
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/documents/{project_id}/{form_id}/docx` | DOCX 다운로드 |
-| GET | `/api/v1/documents/{project_id}/{form_id}/pdf` | PDF 다운로드 |
-| GET | `/api/v1/files/download/{file_id}` | 업로드 파일 다운로드 |
+| Method | Endpoint                                        | Description          |
+| ------ | ----------------------------------------------- | -------------------- |
+| GET    | `/api/v1/documents/{project_id}/{form_id}/docx` | DOCX 다운로드        |
+| GET    | `/api/v1/documents/{project_id}/{form_id}/pdf`  | PDF 다운로드         |
+| GET    | `/api/v1/files/download/{file_id}`              | 업로드 파일 다운로드 |
 
 ### User
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| DELETE | `/api/users/me` | 계정 삭제 |
+| Method | Endpoint        | Description |
+| ------ | --------------- | ----------- |
+| DELETE | `/api/users/me` | 계정 삭제   |
 
 ## Shared RAG Tools
 
@@ -344,18 +356,18 @@ results = store.search(collection, query_embedding, top_k=5, filters=...)
 
 Dense(임베딩) + Sparse(SPLADE) 검색을 결합합니다.
 
-| 파라미터 | 기본값 | 설명 |
-|----------|--------|------|
-| Alpha | 0.7 | Dense 70%, Sparse 30% 가중치 |
+| 파라미터     | 기본값          | 설명                           |
+| ------------ | --------------- | ------------------------------ |
+| Alpha        | 0.7             | Dense 70%, Sparse 30% 가중치   |
 | Sparse Model | SPLADE_PP_en_v1 | BM25 대비 향상된 sparse 임베딩 |
 
 ### 컬렉션
 
-| Collection | 설명 |
-|------------|------|
-| `rag_regulations` | R1: 규제제도 |
-| `rag_cases` | R2: 승인사례 |
-| `rag_laws` | R3: 도메인법령 |
+| Collection        | 설명           |
+| ----------------- | -------------- |
+| `rag_regulations` | R1: 규제제도   |
+| `rag_cases`       | R2: 승인사례   |
+| `rag_laws`        | R3: 도메인법령 |
 
 ## Document Generation
 
@@ -409,13 +421,13 @@ uv run python eval/r3/run_llm_evaluation.py --limit 5
 
 ### Supabase Tables
 
-| Table | Description |
-|-------|-------------|
-| `projects` | 프로젝트 메타데이터 (canonical, application_draft, chat_history, status, track) |
-| `eligibility_results` | 대상성 판단 결과 |
-| `track_results` | 트랙 추천 결과 |
-| `project_files` | 업로드 파일 메타데이터 |
-| `users` | 사용자 프로필 |
+| Table                 | Description                                                                     |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `projects`            | 프로젝트 메타데이터 (canonical, application_draft, chat_history, status, track) |
+| `eligibility_results` | 대상성 판단 결과                                                                |
+| `track_results`       | 트랙 추천 결과                                                                  |
+| `project_files`       | 업로드 파일 메타데이터                                                          |
+| `users`               | 사용자 프로필                                                                   |
 
 ## Deployment
 
@@ -441,10 +453,10 @@ docker-compose logs -f api
 
 **서비스 구성:**
 
-| 서비스 | 이미지 | 포트 | 설명 |
-|--------|--------|------|------|
-| `api` | ghcr.io/...server-api:latest | 8000 | FastAPI 서버 |
-| `qdrant` | qdrant/qdrant:latest | 6333, 6334 | Vector DB (REST + gRPC) |
+| 서비스   | 이미지                       | 포트       | 설명                    |
+| -------- | ---------------------------- | ---------- | ----------------------- |
+| `api`    | ghcr.io/...server-api:latest | 8000       | FastAPI 서버            |
+| `qdrant` | qdrant/qdrant:latest         | 6333, 6334 | Vector DB (REST + gRPC) |
 
 **배포 환경 변수 (.env):**
 
@@ -459,6 +471,7 @@ CORS_ORIGINS=https://your-domain.vercel.app
 ### CI/CD (GitHub Actions)
 
 `.github/workflows/deploy-server.yml`:
+
 - `main` 브랜치 `server/` 경로 변경 시 자동 배포
 - Docker 이미지 빌드 → GHCR push → EC2 SSH 배포
 

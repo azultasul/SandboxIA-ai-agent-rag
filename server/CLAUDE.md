@@ -37,6 +37,7 @@ server/
 ### 1. Service Structurer (서비스 구조화)
 
 **전용 Tools:**
+
 - A. 신청서 템플릿/구조 파서
 - B. UI Form Schema 생성
 - C. 자동 채움(프리필)
@@ -53,6 +54,7 @@ server/
 ### 2. Eligibility Evaluator (대상성 판단)
 
 **전용 Tools:**
+
 - A. Rule 스크리너 (키워드/조건/신호)
 - C. 판정 통합 (Decision Composer)
 - D. 반례/주의사항 생성 (옵션)
@@ -64,6 +66,7 @@ server/
 ### 3. Track Recommender (트랙 추천)
 
 **전용 Tools:**
+
 - A. 트랙 적합도 스코어링
 - C. 설명 생성 (고객사 설명용 템플릿)
 - D. 트랙별 준비 항목 도출 (옵션)
@@ -75,6 +78,7 @@ server/
 ### 4. Application Drafter (신청서 초안)
 
 **전용 Tools:**
+
 - A. 양식 선택/버전 매칭
 - B. 섹션별 컨텐츠 매핑
 - C. 섹션 문장 생성
@@ -83,19 +87,20 @@ server/
 
 **공용 RAG:** R1(섹션 요구/작성 가이드), R2/R3(근거 문장)
 
-**필드별 생성 원칙:** 
+**필드별 생성 원칙:**
 
-| 필드 유형 | canonical (입력) | draft (출력) |
-|-----------|------------------|--------------|
-| 서술형 설명 | 원본 그대로 | AI 다듬기 OK |
-| 메타데이터 (expected_agency 등) | 원본 or null | 생성 금지 |
-| 원본 없는 필드 (additional_questions 등) | null | AI 추론 + `generated_by: "ai"` |
+| 필드 유형                                | canonical (입력) | draft (출력)                  |
+| ---------------------------------------- | ---------------- | ----------------------------- |
+| 서술형 설명                              | 원본 그대로      | AI 다듬기 OK                  |
+| 메타데이터 (expected_agency 등)          | 원본 or null     | 생성 금지                     |
+| 원본 없는 필드 (additional_questions 등) | null             | AI 추론 +`generated_by: "ai"` |
 
 ---
 
 ### 5. Strategy Advisor (전략 추천)
 
 **전용 Tools:**
+
 - B. 승인 포인트 패턴 추출
 - C. 이번 건 적용 전략 생성
 - D. 인용 후보/표현 추천
@@ -108,6 +113,7 @@ server/
 ### 6. Risk Checker (체크리스트 & 리스크)
 
 **전용 Tools:**
+
 - A. 기준 체크리스트 생성
 - B. 누락/약점 탐지
 - C. 리스크 시나리오 생성
@@ -115,7 +121,6 @@ server/
 - E. 최종 검수 리포트 생성
 
 **공용 RAG:** R1(요건/절차), R3(법령 리스크), R2(반려/보완 패턴)
-
 
 ---
 
@@ -180,10 +185,12 @@ GET  /api/v1/agents/status/{task_id}  # 비동기 작업 상태 확인
 ## 문서 생성 (Step 4)
 
 ### 파일명 매핑
+
 - `FORM_NAME_MAP` (documents.py)은 `client/src/data/formData.json`과 동기화 필요
 - 회사명은 form_values 전체에서 검색 (특정 폼에만 있을 수 있음)
 
 ### 템플릿 렌더링 (document_generator.py)
+
 - `docxtpl` + Jinja2 문법
 - `_build_context()`: 날짜 형식 변환, 체크박스(√), SafeDict로 undefined 방지
 - 배열 행 확장: `{{ org0.field }}`, `{{ person0.field }}` 마커 → 행 복제 후 치환
@@ -208,7 +215,6 @@ RUN apt-get update && apt-get install -y libreoffice
 ```bash
 # .env
 OPENAI_API_KEY=sk-...
-TAVILY_API_KEY=tvly-...
 CORS_ORIGINS=http://localhost:3000
 
 # Vector DB
